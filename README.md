@@ -1,63 +1,202 @@
-Problem Statement
+# WanderWise - Multi-Agent Travel Planner
 
-Planning travel is frustratingly time-consuming because users must manually search for hotels, discover local attractions, and cross-reference dozens of sites just to answer basic questions like “Where should I stay?” or “What is there to do nearby?” Hotel listings rarely provide meaningful context about surrounding activities, while activity websites often lack important logistical details such as distance, neighborhood safety, or availability. This fragmentation forces travelers to juggle tabs, compare inconsistent descriptions, and interpret unstructured information without guidance. As travel expectations grow and destinations become more complex, this manual research approach becomes overwhelming and inefficient. Travelers need a system capable of gathering verified information quickly, analyzing it intelligently, and presenting it in a cohesive format that removes the burden of piecing everything together themselves.
+## Problem Statement
 
-Solution Statement
+Planning a trip should feel exciting, but in reality it often feels like a chore. A typical traveler who simply wants “good hotels near the Eiffel Tower” ends up drowning in tabs, switching between hotel sites, map apps, and review pages just to confirm something as basic as distance. The moment they want to find activities as well, the process becomes even more disjointed. There’s no single conversational interface where someone can express what they actually want in natural language—something like:
 
-A multi-agent travel planner solves this challenge by dividing the problem into specialized reasoning units that work together under a centralized orchestrator. Instead of requiring the user to manually check travel sites or parse raw API responses, the system delegates hotel-related queries to a dedicated hotel agent and activity-related queries to an activities agent. These specialized agents retrieve real data from the Geoapify Places API, analyze relevance, filter noise, and return structured insights that reflect the user’s intent. The orchestrator coordinates the agents, interpreting the user’s question, deciding which agent should handle it, and assembling the final answer. The result is a streamlined, intelligent planning workflow where users simply ask travel questions and receive clear, well-structured recommendations backed by real data.
+> “Find me three hotels within five kilometers of the Louvre, and also show me things to do nearby.”
 
-Architecture
+Instead, travelers fight through fragmented platforms and endless lists that were never designed around how people naturally plan trips. The experience becomes time-consuming, mentally draining, and breaks the flow of trip discovery. **I created WanderWise to solve exactly this problem.**
 
-The core of this system is the travel_planner_agent, a centralized orchestrator built with Google’s Agent Development Kit. It defines the system’s reasoning style, instruction set, and behavioral expectations. When a user makes a request, the orchestrator interprets the intent and routes the query to the appropriate sub-agent. It does not retrieve hotels or activities directly; instead, it manages the workflow between the hotel_agent and activities_agent, ensuring that each part of the user’s request is handled by the agent designed to process it. After receiving results, the orchestrator formats the information into a coherent narrative that feels unified rather than stitched together.
+---
 
-The hotel_agent specializes in hotel discovery. It interprets user prompts involving accommodations and calls the custom search_hotels tool, which integrates with Geoapify’s Places API. After retrieving the data, it filters out incomplete or irrelevant results, processes key attributes, and organizes them into a structured response.
+## Why Agents?
 
-The activities_agent performs an analogous role for points of interest and things to do. Whenever a user asks about attractions, experiences, or local activities, this agent calls the search_activities tool. It processes the results, ranks them based on relevance, and generates a summary suitable for the orchestrator to incorporate into the final output.
+The travel planning process naturally breaks into several specialized tasks:
 
-Together, these three agents form a modular, extensible architecture: one planner at the top and two domain experts beneath it. Because each agent has a clear role and narrow focus, the system remains organized, reliable, and easy to expand.
+- Deciding intent
+- Searching for hotels
+- Searching for activities
+- Retrieving real data from APIs
+- Returning clean results
 
-Hotel Agent: hotel_agent
+A single monolithic model tends to hallucinate, mis-handle parameters, or blend unrelated tasks together. **Agents**, on the other hand, allow each travel-related task to be handled by a specialist. The system’s coordinator agent can:
 
-The hotel_agent is a purpose-built specialist for handling all accommodation-related requests. When invoked by the orchestrator, it extracts the key details from the user’s prompt—such as destination, radius, and desired number of results—and forwards these parameters to the search_hotels tool. This tool communicates with the Geoapify Places API and returns structured hotel data. The agent then evaluates and formats the results, ensuring they are readable, relevant, and aligned with the user’s needs. Its responsibility is not only to gather data but to interpret it, producing a clean, user-friendly summary of available hotel options.
+- Interpret what the user is asking for
+- Determine whether the request is about hotels or activities
+- Extract parameters like radius or limit
+- Assign the request to the appropriate expert agent
 
-Activities Agent: activities_agent
+The **Hotel Agent** focuses exclusively on hotel discovery using a real external API, while the **Activities Agent** does the same for attractions and points of interest. This separation:
 
-The activities_agent focuses exclusively on analyzing attractions and things to do around a target location. Using the search_activities tool, it queries the Geoapify API for points of interest within a chosen radius. After receiving raw results, the agent filters them, removes duplicates or low-signal entries, and organizes the remaining activities into a meaningful and digestible presentation. This agent brings clarity to an otherwise overwhelming amount of location data, allowing users to get a quick understanding of what makes the destination interesting or worthwhile.
+- Increases reliability
+- Reduces hallucination
+- Encourages clean modular design
+- Mirrors how human teams delegate tasks
 
-Essential Tools and Utilities
+The multi-agent architecture allows users to speak naturally while the system quietly handles intent routing, tool calling, and data gathering behind the scenes.
 
-The search_hotels tool is the system’s external data engine for hotel discovery. It constructs a Geoapify Places API request, handles authentication through environment variables, builds the query URL, and parses the returned JSON. It also cleans response data by extracting name, coordinates, address, and other essential attributes. This tool transforms raw API responses into structured datasets that the hotel_agent can reason over.
+---
 
-The search_activities tool performs the same essential function for attractions and points of interest. It interacts with the Geoapify Places API, retrieves activity data, normalizes the fields, and returns it in a consistent structure. These tools elevate the agents from purely reasoning systems into data-driven assistants capable of working with real-world travel information.
+## What I Created
 
-Conclusion
+**WanderWise** is a three-agent system built with the Google Agent Development Kit (ADK). At the center of the system is the **Travel Coordinator Agent**, which acts as the orchestrator for the entire workflow. It receives the user’s request, interprets the intent, parses the location, and determines whether the user is asking for hotels or activities. It then delegates the request to either the Hotel Agent or the Activities Agent depending on the context.
 
-This multi-agent travel system is a clear demonstration of how specialization and orchestration can simplify complex user workflows. By dividing responsibilities between a planner and two domain-expert agents, the system produces recommendations that are reliable, structured, and grounded in real data. The orchestrator ensures all information flows smoothly, while each sub-agent brings focused expertise to its domain. The architecture is both robust and flexible, allowing future extensions such as restaurant search, trip budgeting, automated itinerary generation, or neighborhood-level safety scoring—all fitting naturally into the existing agent hierarchy. For travelers, this results in a faster, more organized planning experience that avoids the chaos of manual searching.
+- **Hotel Agent**: Responsible exclusively for finding hotels. Uses the `search_hotels` tool, which integrates with the **Geoapify Places API** to geocode locations, retrieve hotels within a specified radius, and return structured hotel information including names, addresses, categories, and distances. The agent is strictly guided by its prompt to prevent hallucination and rely only on tool output.
 
-Value Statement
+- **Activities Agent**: Focuses on points of interest and things to do. Uses the `search_activities` tool, which calls the **OpenTripMap API** to turn locations into coordinates, search for attractions, and rank them by relevance or importance. Returns clean, structured results without fabricating content.
 
-This system dramatically reduces the amount of effort required to plan trips by automating hotel and activity discovery with real API-backed data. Users receive consistent, structured answers that would normally require several manual searches, multiple comparison steps, and interpretation of unstructured online content. If more development time were available, expanding the system with a transportation analysis agent or a restaurant discovery agent would further enhance its usefulness and bring additional domains under the same unified planning workflow.
+Together, these agents form a small but highly functional travel team, with the **Coordinator Agent** acting as the manager that routes tasks and combines results into a natural conversational response. The entire architecture reflects modularity, clarity, and real tool-driven capability—no fallback agent, no guesswork, just clean collaboration.
 
-Installation
+---
 
-This project was built on Python 3.11+. A virtual environment is recommended. After activating it, install dependencies with:
+## Demo
 
+When interacting with WanderWise, the user can speak naturally and the system handles the complexity behind the scenes. For example:
+
+- **Query**: “Find me three hotels within five kilometers of the Eiffel Tower”  
+  **Flow**: Coordinator Agent → Hotel Agent → `search_hotels` (Geoapify) → structured output
+
+- **Query**: “Show me fun things to do near the Louvre”  
+  **Flow**: Coordinator Agent → Activities Agent → `search_activities` (Geoapify + OpenTripMap) → structured output
+
+Development involved testing each layer individually—the raw tools, the individual agents, and then the full orchestrated system—to ensure parameter handling, tool calling, and agent routing behaved predictably. The result is a seamless travel experience powered entirely by agents and real APIs.
+
+---
+
+## The Build
+
+WanderWise was built using the **Google Agent Development Kit**, with a focus on:
+
+- Real tool integration
+- Structured outputs
+- Precise agent boundaries
+
+The system contains three `LlmAgents`:
+
+1. **Travel Coordinator Agent** – interprets queries, routes tasks, aggregates results
+2. **Hotel Agent** – uses `search_hotels` (Geoapify) to retrieve hotels
+3. **Activities Agent** – uses `search_activities` (Geoapify + OpenTripMap) to retrieve activities
+
+Environment variables are handled through **dotenv** to keep API keys secure. Each tool has clear input schemas that match ADK’s structured function-calling system, ensuring consistent behavior and robust error handling.
+
+Agents have tightly scoped roles to prevent hallucination:
+
+- Coordinator Agent: intent recognition and routing logic only
+- Specialist Agents: rely solely on their tools
+
+Development involved iterative testing:
+
+1. Verify raw tool functionality
+2. Validate each individual agent with controlled inputs
+3. Connect all agents through the orchestrator for end-to-end testing
+
+By the end, the system demonstrated core ADK concepts such as multi-agent routing, tool-driven execution, and API integration in a clean, modular architecture.
+
+---
+
+## If I Had More Time
+
+- Add an **itinerary-building agent** to organize hotel and activity results into a coherent multi-day plan with time estimates
+- Integrate a **flight-search agent** for a full travel concierge
+- Add **user preference memory** (budget, travel style, accessibility)
+- Output **interactive maps** showing hotel and activity locations together
+
+These additions would elevate WanderWise into a deeply personalized, end-to-end trip-planning companion.
+
+---
+
+## Installation
+
+This project was built using **Python 3.11+**.  
+
+### Setup Virtual Environment
+
+```bash
+python -m venv venv
+# Activate the virtual environment
+# On macOS/Linux:
+source venv/bin/activate
+# On Windows:
+venv\Scripts\activate
+```
+
+### Install Dependencies
+```bash
 pip install -r requirements.txt
+```
 
-Running the Agent in ADK Web Mode
+### Set API Keys
 
-To launch the web interface for interactive testing:
+Since the .env file has been removed for security, provide your own API keys as environment variables:
 
-adk web
+Geoapify Places API – hotel and activity data
 
-To run automated tests:
+OpenTripMap API – points of interest, landmarks, attractions
+```bash
+# macOS/Linux
+export GEOAPIFY_API_KEY="your_geoapify_api_key_here"
+export OPENTRIPMAP_API_KEY="your_opentripmap_api_key_here"
 
-python -m tests.test_agent
+# Windows
+set GEOAPIFY_API_KEY="your_geoapify_api_key_here"
+set OPENTRIPMAP_API_KEY="your_opentripmap_api_key_here"
+```
+
+Alternatively, store these keys as GitHub Secrets if using GitHub Actions for CI/CD or deployments.
+
+## Running the Agent
+
+All interactions go through run.py:
+```bash
+python run.py
+```
+
+### Example queries:
+
+“Find hotels in Paris within 3 km of the Eiffel Tower.”
+
+“Show me top attractions near Times Square.”
+
+The root agent interprets the query, routes it to the relevant agent, and returns a unified, structured response. The activity_agent uses both Geoapify and OpenTripMap for comprehensive recommendations.
 
 Project Structure
+```graphql
+wanderwise-agent/
+│
+├─ agents/                 # All agent modules
+│  ├─ __init__.py
+│  ├─ root_travel_agent.py # Central orchestrator
+│  ├─ hotel_agent.py       # Handles hotel-related queries
+│  └─ activity_agent.py    # Handles activity queries, including OpenTripMap
+│
+├─ tools/                  # API and helper tools
+│  ├─ __init__.py
+│  ├─ hotel_tools.py       # Geoapify hotel queries
+│  └─ activity_tools.py    # Geoapify & OpenTripMap activity queries
+│
+├─ run.py                  # Entry point to run the system
+├─ requirements.txt        # Python dependencies
+├─ README.md               # This file
+└─ venv/                   # Virtual environment (ignored in Git)
+```
 
-The travel_planner_agent is the root orchestrator and lives in travel_planner_agent.py. Sub-agents are located in the sub_agents directory, including hotel_agent.py and activities_agent.py. All external API interactions occur within the tools directory, where hotel_tools.py and activities_tools.py define the functions used by the agents. The config.py file specifies model and agent configurations, and the tests directory contains integration tests for verifying system behavior.
+## Workflow
 
-Workflow
+The travel query workflow:
 
-The workflow begins when a user submits a travel query. The travel_planner_agent analyzes the intent and delegates it to either the hotel_agent or activities_agent. The chosen agent performs the necessary external search through its associated tool, processes and filters the results, and returns structured information. The orchestrator then collects the output, integrates it into a coherent response, and presents it to the user. This clean delegation pattern ensures each component performs exactly the task it’s designed for, producing a highly organized multi-agent travel planning experience.
+Input Query: Users run run.py and type a travel-related question.
+
+Root Agent Orchestration: root_travel_agent parses the query, identifies intent, and decides which agent should handle it.
+
+### Agent Execution:
+
+hotel_agent: Fetches hotel data (location, ratings, availability) via Geoapify
+
+activity_agent: Queries Geoapify and OpenTripMap for points of interest, landmarks, and attractions. Filters and ranks results
+
+Response Aggregation: Root agent collects outputs from sub-agents and assembles a cohesive, readable response
+
+User Output: Structured results are presented in the terminal, making travel planning simple without manually cross-referencing multiple sources
+
+This delegation model ensures each agent focuses on its domain while the root agent maintains control, delivering a reliable and scalable multi-agent travel planning experience.
