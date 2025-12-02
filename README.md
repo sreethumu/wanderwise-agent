@@ -160,6 +160,46 @@ python run.py
 
 The root agent interprets the query, routes it to the relevant agent, and returns a unified, structured response. The activity_agent uses both Geoapify and OpenTripMap for comprehensive recommendations.
 
+## Sample Run (Full Example)
+
+Below is an example of a full conversation-style input and the type of structured output WanderWise can generate.
+
+### Sample Input
+
+I’m looking for a 7-day cultural vacation in Paris for a couple. We enjoy art museums, historic sites, good food. Prefer boutique hotels, relaxed pace — 2-3 activities a day, some downtime, dinner suggestions, public-transit-friendly
+
+### Sample Output
+
+--- Travel Plan ---
+Okay, here is a possible 7-day cultural itinerary for a couple in Paris, focusing on art, history, and food, with a relaxed pace and consideration for public transit:
+
+#### Hotels:
+I recommend considering Relais Saint-Sulpice. Its location in the 6th arrondissement is ideal for exploring many cultural sites and enjoying Parisian cafes. Hôtel Plaza Athénée is another good option.
+
+#### Itinerary:
+
+* Day 1: Arrive in Paris, check into your hotel. Stroll through the Latin Quarter, have dinner at a traditional bistro (e.g., Bouillon Chartier - cost estimate unavailable).
+
+* Day 2: Visit the Louvre Museum (cost estimate unavailable), relax in the Tuileries Garden. Dinner in the Marais.
+
+* Day 3: Explore Notre Dame and Île de la Cité, visit Sainte-Chapelle (cost estimate unavailable), dinner with a view of the Eiffel Tower.
+
+* Day 4: Musée d'Orsay (cost estimate unavailable), Montmartre & Sacré-Cœur, dinner in Montmartre.
+
+* Day 5: Day trip to Versailles (cost estimate unavailable), dinner near your hotel.
+
+* Day 6: Centre Pompidou (cost estimate unavailable), lunch at a local café, optional Seine cruise.
+
+* Day 7: Visit Marché des Enfants Rouges, explore Canal Saint-Martin, final dinner in Paris.
+
+#### Notes:
+
+* Paris has excellent public transit; consider a Navigo Easy pass.
+
+* Many museums support online booking.
+
+* Dinner suggestions are general; booking ahead is recommended.
+
 Project Structure
 ```graphql
 wanderwise-agent/
