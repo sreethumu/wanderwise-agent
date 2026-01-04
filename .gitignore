@@ -59,4 +59,5 @@ coverage/
 # macOS & Windows system files
 .DS_Store
 Thumbs.db
+logging.log
 
