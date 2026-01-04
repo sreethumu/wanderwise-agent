@@ -1,11 +1,13 @@
 # agents/hotel_agent.py
 
+import logging
 from google.adk.agents import LlmAgent
 from google.adk.tools.function_tool import FunctionTool
 from tools.hotel_tools import search_hotels
 from dotenv import load_dotenv
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 hotel_search_tool = FunctionTool(func=search_hotels)
 
 hotel_agent = LlmAgent(
@@ -45,5 +47,5 @@ Important rules:
 - Do NOT invent prices or availability if not provided.
 - Return only plain text.
 """,
-    tools=[hotel_search_tool],
+    tools=[search_hotels],
 )

@@ -1,46 +1,18 @@
 # WanderWise - Multi-Agent Travel Planner
 
+## # WanderWise - Multi-Agent Travel Planner
+
 ## Problem Statement
 
-Planning a trip should feel exciting, but in reality it often feels like a chore. A typical traveler who simply wants “good hotels near the Eiffel Tower” ends up drowning in tabs, switching between hotel sites, map apps, and review pages just to confirm something as basic as distance. The moment they want to find activities as well, the process becomes even more disjointed. There’s no single conversational interface where someone can express what they actually want in natural language—something like:
+Planning travel is frustratingly time-consuming because users must manually search for hotels, discover local attractions, and cross-reference dozens of sites just to answer basic questions like “Where should I stay?” or “What is there to do nearby?” Hotel listings rarely provide meaningful context about surrounding activities, while activity websites often lack important logistical details such as distance, neighborhood safety, or availability. This fragmentation forces travelers to juggle tabs, compare inconsistent descriptions, and interpret unstructured information without guidance. As travel expectations grow and destinations become more complex, this manual research approach becomes overwhelming and inefficient. Travelers need a system capable of gathering verified information quickly, analyzing it intelligently, and presenting it in a cohesive format that removes the burden of piecing everything together themselves.
 
-> “Find me three hotels within five kilometers of the Louvre, and also show me things to do nearby.”
+Solution Statement
 
-Instead, travelers fight through fragmented platforms and endless lists that were never designed around how people naturally plan trips. The experience becomes time-consuming, mentally draining, and breaks the flow of trip discovery. **I created WanderWise to solve exactly this problem.**
+A multi-agent travel planner solves this challenge by dividing the problem into specialized reasoning units that work together under a centralized orchestrator. Instead of requiring the user to manually check travel sites or parse raw API responses, the system delegates hotel-related queries to a dedicated hotel agent and activity-related queries to an activities agent. These specialized agents retrieve real data from the Geoapify Places API, analyze relevance, filter noise, and return structured insights that reflect the user’s intent. The orchestrator coordinates the agents, interpreting the user’s question, deciding which agent should handle it, and assembling the final answer. The result is a streamlined, intelligent planning workflow where users simply ask travel questions and receive clear, well-structured recommendations backed by real data.
 
----
+Architecture
 
-## Why Agents?
-
-The travel planning process naturally breaks into several specialized tasks:
-
-- Deciding intent
-- Searching for hotels
-- Searching for activities
-- Retrieving real data from APIs
-- Returning clean results
-
-A single monolithic model tends to hallucinate, mis-handle parameters, or blend unrelated tasks together. **Agents**, on the other hand, allow each travel-related task to be handled by a specialist. The system’s coordinator agent can:
-
-- Interpret what the user is asking for
-- Determine whether the request is about hotels or activities
-- Extract parameters like radius or limit
-- Assign the request to the appropriate expert agent
-
-The **Hotel Agent** focuses exclusively on hotel discovery using a real external API, while the **Activities Agent** does the same for attractions and points of interest. This separation:
-
-- Increases reliability
-- Reduces hallucination
-- Encourages clean modular design
-- Mirrors how human teams delegate tasks
-
-The multi-agent architecture allows users to speak naturally while the system quietly handles intent routing, tool calling, and data gathering behind the scenes.
-
----
-
-## What I Created
-
-**WanderWise** is a three-agent system built with the Google Agent Development Kit (ADK). At the center of the system is the **Travel Coordinator Agent**, which acts as the orchestrator for the entire workflow. It receives the user’s request, interprets the intent, parses the location, and determines whether the user is asking for hotels or activities. It then delegates the request to either the Hotel Agent or the Activities Agent depending on the context.
+The core of this system is the travel_planner_agent, a centralized orchestrator built with Google’s Agent Development Kit. It defines the system’s reasoning style, instruction set, and behavioral expectations. When a user makes a request, the orchestrator interprets the intent and routes the query to the appropriate sub-agent. It does not retrieve hotels or activities directly; instead, it manages the workflow between the hotel_agent and activities_agent, ensuring that each part of the user’s request is handled by the agent designed to process it. After receiving results, the orchestrator formats the information into a coherent narrative that feels unified rather than stitched together.
 
 - **Hotel Agent**: Responsible exclusively for finding hotels. Uses the `search_hotels` tool, which integrates with the **Geoapify Places API** to geocode locations, retrieve hotels within a specified radius, and return structured hotel information including names, addresses, categories, and distances. The agent is strictly guided by its prompt to prevent hallucination and rely only on tool output.
 
@@ -108,120 +80,25 @@ These additions would elevate WanderWise into a deeply personalized, end-to-end 
 
 ## Installation
 
-This project was built using **Python 3.11+**.  
+This project was built on Python 3.11+. A virtual environment is recommended. After activating it, install dependencies with:
 
-### Setup Virtual Environment
-
-```bash
-python -m venv venv
-# Activate the virtual environment
-# On macOS/Linux:
-source venv/bin/activate
-# On Windows:
-venv\Scripts\activate
-```
-
-### Install Dependencies
-```bash
 pip install -r requirements.txt
-```
 
-### Set API Keys
+Running the Agent in ADK Web Mode
 
-Since the .env file has been removed for security, provide your own API keys as environment variables:
+To launch the web interface for interactive testing:
 
-Geoapify Places API – hotel and activity data
+adk web
 
-OpenTripMap API – points of interest, landmarks, attractions
-```bash
-# macOS/Linux
-export GEOAPIFY_API_KEY="your_geoapify_api_key_here"
-export OPENTRIPMAP_API_KEY="your_opentripmap_api_key_here"
+To run automated tests:
 
-# Windows
-set GEOAPIFY_API_KEY="your_geoapify_api_key_here"
-set OPENTRIPMAP_API_KEY="your_opentripmap_api_key_here"
-```
-
-Alternatively, store these keys as GitHub Secrets if using GitHub Actions for CI/CD or deployments.
-
-## Running the Agent
-
-All interactions go through run.py:
-```bash
-python run.py
-```
-
-### Example queries:
-
-“Find hotels in Paris within 3 km of the Eiffel Tower.”
-
-“Show me top attractions near Times Square.”
-
-The root agent interprets the query, routes it to the relevant agent, and returns a unified, structured response. The activity_agent uses both Geoapify and OpenTripMap for comprehensive recommendations.
-
-## Sample Run (Full Example)
-
-Below is an example of a full conversation-style input and the type of structured output WanderWise can generate.
-
-### Sample Input
-
-I’m looking for a 7-day cultural vacation in Paris for a couple. We enjoy art museums, historic sites, good food. Prefer boutique hotels, relaxed pace — 2-3 activities a day, some downtime, dinner suggestions, public-transit-friendly
-
-### Sample Output
-
---- Travel Plan ---
-Okay, here is a possible 7-day cultural itinerary for a couple in Paris, focusing on art, history, and food, with a relaxed pace and consideration for public transit:
-
-#### Hotels:
-I recommend considering Relais Saint-Sulpice. Its location in the 6th arrondissement is ideal for exploring many cultural sites and enjoying Parisian cafes. Hôtel Plaza Athénée is another good option.
-
-#### Itinerary:
-
-* Day 1: Arrive in Paris, check into your hotel. Stroll through the Latin Quarter, have dinner at a traditional bistro (e.g., Bouillon Chartier - cost estimate unavailable).
-
-* Day 2: Visit the Louvre Museum (cost estimate unavailable), relax in the Tuileries Garden. Dinner in the Marais.
-
-* Day 3: Explore Notre Dame and Île de la Cité, visit Sainte-Chapelle (cost estimate unavailable), dinner with a view of the Eiffel Tower.
-
-* Day 4: Musée d'Orsay (cost estimate unavailable), Montmartre & Sacré-Cœur, dinner in Montmartre.
-
-* Day 5: Day trip to Versailles (cost estimate unavailable), dinner near your hotel.
-
-* Day 6: Centre Pompidou (cost estimate unavailable), lunch at a local café, optional Seine cruise.
-
-* Day 7: Visit Marché des Enfants Rouges, explore Canal Saint-Martin, final dinner in Paris.
-
-#### Notes:
-
-* Paris has excellent public transit; consider a Navigo Easy pass.
-
-* Many museums support online booking.
-
-* Dinner suggestions are general; booking ahead is recommended.
+python -m tests.test_agent
 
 Project Structure
-```graphql
-wanderwise-agent/
-│
-├─ agents/                 # All agent modules
-│  ├─ __init__.py
-│  ├─ root_travel_agent.py # Central orchestrator
-│  ├─ hotel_agent.py       # Handles hotel-related queries
-│  └─ activity_agent.py    # Handles activity queries, including OpenTripMap
-│
-├─ tools/                  # API and helper tools
-│  ├─ __init__.py
-│  ├─ hotel_tools.py       # Geoapify hotel queries
-│  └─ activity_tools.py    # Geoapify & OpenTripMap activity queries
-│
-├─ run.py                  # Entry point to run the system
-├─ requirements.txt        # Python dependencies
-├─ README.md               # This file
-└─ venv/                   # Virtual environment (ignored in Git)
-```
 
-## Workflow
+The travel_planner_agent is the root orchestrator and lives in travel_planner_agent.py. Sub-agents are located in the sub_agents directory, including hotel_agent.py and activities_agent.py. All external API interactions occur within the tools directory, where hotel_tools.py and activities_tools.py define the functions used by the agents. The config.py file specifies model and agent configurations, and the tests directory contains integration tests for verifying system behavior.
+
+Workflow
 
 The travel query workflow:
 

@@ -1,5 +1,6 @@
 # agents/root_travel_agent.py
 
+import logging
 from google.adk.agents import LlmAgent
 from google.adk.tools.agent_tool import AgentTool
 from agents.hotel_agent import hotel_agent
@@ -7,6 +8,7 @@ from agents.activity_agent import activity_agent
 from dotenv import load_dotenv
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 root_travel_agent = LlmAgent(
     name="root_travel_agent",
     model="gemini-2.0-flash",
@@ -52,11 +54,12 @@ Parse the user request and identify:
 These parameters are used internally; you do not need to print them.
 
 ### Step 2 — Call hotel_agent  
-Provide the extracted hotel-relevant parameters.  
+Provide the extracted hotel-relevant parameters in JSON format.  
 Request 1–3 hotel options.
 
+
 ### Step 3 — Call activity_agent  
-Provide the extracted activity-relevant parameters.  
+Provide the extracted activity-relevant parameters in JSON format.
 Request a list of suitable activities/POIs.
 
 ### Step 4 — Compose Itinerary  

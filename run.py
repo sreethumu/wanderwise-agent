@@ -2,9 +2,18 @@
 
 import os
 import asyncio
+import logging
 from dotenv import load_dotenv
 from google.adk.runners import InMemoryRunner
 from agents.root_travel_agent import root_travel_agent
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)-8s | %(name)s | %(message)s",
+    force=True,  # Override any existing logging config
+)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 api1 = os.getenv("GEOAPIFY_API_KEY")
@@ -17,6 +26,7 @@ async def main():
     runner = InMemoryRunner(agent=root_travel_agent)
     print("✅ Travel‑planner ADK runner ready.")
     user_request = input("Enter your travel request: ")
+    logger.info(f"📝 User Request: {user_request}")
 
     events = await runner.run_debug(user_request)
 

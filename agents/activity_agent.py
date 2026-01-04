@@ -1,11 +1,13 @@
 # agents/activity_agent.py
 
+import logging
 from google.adk.agents import LlmAgent
 from google.adk.tools.function_tool import FunctionTool
 from tools.activity_tools import search_activities
 from dotenv import load_dotenv
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 activity_search_tool = FunctionTool(func=search_activities)
 
 activity_agent = LlmAgent(
