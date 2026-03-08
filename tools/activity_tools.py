@@ -5,76 +5,124 @@ import requests
 from dotenv import load_dotenv
 
 load_dotenv()
-OPENTRIPMAP_API_KEY = os.getenv("OPENTRIPMAP_API_KEY")
-GEOAPIFY_API_KEY = os.getenv("GEOAPIFY_API_KEY")
+GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")
 
-# Default kinds for tourist-friendly results
-DEFAULT_KINDS = "interesting_places,cultural,historic,natural,architecture,museums,religion,amusements"
+GEOCODING_URL = "https://maps.googleapis.com/maps/api/geocode/json"
+PLACES_URL = "https://places.googleapis.com/v1/places:searchNearby"
+
+# Mapping of interest keywords to Google Places (New) includedTypes
+KINDS_TO_GOOGLE_TYPES = {
+    "cultural": ["museum", "art_gallery", "cultural_center"],
+    "historic": ["historical_place", "monument", "ruins"],
+    "natural": ["national_park", "park", "botanical_garden", "hiking_area"],
+    "architecture": ["landmark", "historical_place"],
+    "museums": ["museum", "art_gallery"],
+    "religion": ["church", "hindu_temple", "mosque", "synagogue", "buddhist_temple"],
+    "amusements": ["amusement_park", "zoo", "aquarium", "theme_park"],
+    "food": ["restaurant", "food", "bakery", "cafe"],
+    "shopping": ["shopping_mall", "market", "store"],
+    "nightlife": ["bar", "night_club"],
+    "outdoors": ["park", "national_park", "hiking_area", "beach"],
+}
+
+DEFAULT_TYPES = [
+    "tourist_attraction",
+    "museum",
+    "art_gallery",
+    "historical_place",
+    "park",
+    "zoo",
+    "aquarium",
+    "amusement_park",
+]
 
 
 def geocode_city(city: str) -> dict:
     """
-    Use Geoapify to geocode a city name -> lat/lon.
-    Returns: {"status": "success", "lat": ..., "lon": ..., "bbox": ...}
+    Use Google Geocoding API to convert a city name to lat/lon.
+    Returns: {"status": "success", "lat": ..., "lon": ...}
           or {"status": "error", "error_message": ...}
     """
-    if not GEOAPIFY_API_KEY:
-        return {"status": "error", "error_message": "Missing Geoapify API key"}
+    if not GOOGLE_PLACES_API_KEY:
+        return {"status": "error", "error_message": "Missing Google Places API key"}
 
-    params = {"text": city, "apiKey": GEOAPIFY_API_KEY, "format": "json"}
-    url = "https://api.geoapify.com/v1/geocode/search"
+    params = {"address": city, "key": GOOGLE_PLACES_API_KEY}
 
     try:
-        resp = requests.get(url, params=params, timeout=10)
+        resp = requests.get(GEOCODING_URL, params=params, timeout=10)
         resp.raise_for_status()
         data = resp.json()
-        results = data.get("results", [])
 
-        if not results:
+        if data.get("status") != "OK" or not data.get("results"):
             return {
                 "status": "error",
-                "error_message": f"No geocoding result for city: {city}",
+                "error_message": f"Could not geocode city: {city} — {data.get('status')}",
             }
 
-        first = results[0]
+        location = data["results"][0]["geometry"]["location"]
         return {
             "status": "success",
-            "lat": first.get("lat"),
-            "lon": first.get("lon"),
-            "bbox": first.get("bbox"),
+            "lat": location["lat"],
+            "lon": location["lng"],
         }
     except Exception as e:
         return {"status": "error", "error_message": str(e)}
 
 
+def parse_kinds_to_google_types(kinds: str) -> list:
+    """
+    Convert a comma-separated kinds string (e.g. 'cultural,museums,food')
+    into a list of Google Places includedTypes.
+    Falls back to DEFAULT_TYPES if no match found.
+    """
+    if not kinds:
+        return DEFAULT_TYPES
+
+    google_types = []
+    for kind in kinds.split(","):
+        kind = kind.strip().lower()
+        mapped = KINDS_TO_GOOGLE_TYPES.get(kind)
+        if mapped:
+            google_types.extend(mapped)
+
+    # Deduplicate while preserving order
+    seen = set()
+    unique_types = []
+    for t in google_types:
+        if t not in seen:
+            seen.add(t)
+            unique_types.append(t)
+
+    return unique_types if unique_types else DEFAULT_TYPES
+
+
 def search_activities(
     city: str,
-    kinds: str = DEFAULT_KINDS,
+    kinds: str = None,
     radius_m: int = 10000,
     limit: int = 20,
-    min_rate: int = 2,
 ) -> dict:
     """
-    Search for activities / POIs around a city using OpenTripMap API.
+    Search for activities / POIs around a city using Google Places API (New).
 
     Args:
         city:      City name to search around.
-        kinds:     Comma-separated OpenTripMap kinds. Defaults to popular tourist categories.
+        kinds:     Comma-separated interest types e.g. 'cultural,museums,food'.
+                   Maps to Google Places includedTypes automatically.
         radius_m:  Search radius in metres. Default 10,000m (10km).
-        limit:     Max number of results to return (after filtering). Default 20.
-        min_rate:  Minimum OpenTripMap 'rate' score (0–7) to include. Default 2.
+        limit:     Max results to return. Default 20 (Google max is 20).
 
     Returns:
-        {"status": "success", "activities": [...], "total_raw": int, "city_coords": {...}}
+        {"status": "success", "activities": [...], "city_coords": {...}}
         or {"status": "error", "error_message": str}
 
     Each activity dict contains:
-        name, lat, lon, kinds, rate (int), xid
+        name, lat, lon, types, rating, user_rating_count, address, google_maps_url
     """
-    if not OPENTRIPMAP_API_KEY:
-        return {"status": "error", "error_message": "Missing OpenTripMap API key"}
+    if not GOOGLE_PLACES_API_KEY:
+        return {"status": "error", "error_message": "Missing Google Places API key"}
 
-    # Step 1 — geocode the city
+    # Step 1 — geocode city
     geo = geocode_city(city)
     if geo.get("status") != "success":
         return {
@@ -85,87 +133,64 @@ def search_activities(
     lat = geo["lat"]
     lon = geo["lon"]
 
-    # Step 2 — fetch POIs from OpenTripMap
-    params = {
-        "apikey": OPENTRIPMAP_API_KEY,
-        "radius": radius_m,
-        "limit": 100,           # fetch more up front so filtering doesn't starve results
-        "lon": lon,
-        "lat": lat,
-        "kinds": kinds,
-        "format": "json",
+    # Step 2 — map kinds to Google Place types
+    included_types = parse_kinds_to_google_types(kinds)
+
+    # Step 3 — call Google Places (New) Nearby Search
+    headers = {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
+        "X-Goog-FieldMask": "places.displayName,places.location,places.types,places.rating,places.userRatingCount,places.formattedAddress,places.googleMapsUri",
     }
 
-    url = "https://api.opentripmap.com/0.1/en/places/radius"
+    body = {
+        "includedTypes": included_types[:50],  # Google allows max 50 types
+        "maxResultCount": min(limit, 20),       # Google max is 20
+        "locationRestriction": {
+            "circle": {
+                "center": {"latitude": lat, "longitude": lon},
+                "radius": float(radius_m),
+            }
+        },
+        "rankPreference": "POPULARITY",
+    }
 
     try:
-        resp = requests.get(url, params=params, timeout=10)
+        resp = requests.post(PLACES_URL, headers=headers, json=body, timeout=10)
         resp.raise_for_status()
         data = resp.json()
 
-        if not isinstance(data, list):
+        places = data.get("places", [])
+
+        if not places:
             return {
                 "status": "error",
-                "error_message": f"Unexpected API response format: {type(data).__name__}",
+                "error_message": f"No activities found for {city}. Try increasing radius_m or broadening interests.",
             }
 
-        total_raw = len(data)
         activities = []
-
-        for item in data:
-            # Skip places with no name or blank name
-            name = item.get("name", "").strip()
+        for place in places:
+            name = place.get("displayName", {}).get("text", "").strip()
             if not name:
                 continue
 
-            # rate comes back as a string from the API — cast safely
-            rate = int(item.get("rate") or 0)
-            if rate < min_rate:
-                continue
-
-            activities.append(
-                {
-                    "name": name,
-                    "lat": item.get("point", {}).get("lat"),
-                    "lon": item.get("point", {}).get("lon"),
-                    "kinds": item.get("kinds"),
-                    "rate": rate,
-                    "xid": item.get("xid"),
-                }
-            )
-
-            # Stop once we have enough
-            if len(activities) >= limit:
-                break
+            location = place.get("location", {})
+            activities.append({
+                "name": name,
+                "lat": location.get("latitude"),
+                "lon": location.get("longitude"),
+                "types": place.get("types", []),
+                "rating": place.get("rating"),
+                "user_rating_count": place.get("userRatingCount"),
+                "address": place.get("formattedAddress", "Address unavailable"),
+                "google_maps_url": place.get("googleMapsUri", ""),
+            })
 
         return {
             "status": "success",
             "activities": activities,
-            "total_raw": total_raw,          # useful for debugging
             "city_coords": {"lat": lat, "lon": lon},
         }
 
-    except Exception as e:
-        return {"status": "error", "error_message": str(e)}
-
-
-def get_activity_details(xid: str) -> dict:
-    """
-    Fetch detailed info for a single POI by its OpenTripMap xid.
-    Useful for getting descriptions, Wikipedia links, images, etc.
-
-    Returns: {"status": "success", "details": {...}} or {"status": "error", ...}
-    """
-    if not OPENTRIPMAP_API_KEY:
-        return {"status": "error", "error_message": "Missing OpenTripMap API key"}
-
-    url = f"https://api.opentripmap.com/0.1/en/places/xid/{xid}"
-    params = {"apikey": OPENTRIPMAP_API_KEY}
-
-    try:
-        resp = requests.get(url, params=params, timeout=10)
-        resp.raise_for_status()
-        data = resp.json()
-        return {"status": "success", "details": data}
     except Exception as e:
         return {"status": "error", "error_message": str(e)}
