@@ -1,0 +1,5 @@
+google-adk
+google-generativeai
+requests
+# add any other packages you plan to use (e.g. for real API calls)
+pytest
