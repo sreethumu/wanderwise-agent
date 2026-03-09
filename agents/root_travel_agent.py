@@ -52,11 +52,11 @@ Parse the user request and identify:
 These parameters are used internally; you do not need to print them.
 
 ### Step 2 — Call hotel_agent  
-Provide the extracted hotel-relevant parameters.  
+Provide the extracted hotel-relevant parameters in JSON format.  
 Request 1–3 hotel options.
 
 ### Step 3 — Call activity_agent  
-Provide the extracted activity-relevant parameters.  
+Provide the extracted activity-relevant parameters in JSON format.  
 Request a list of suitable activities/POIs.
 
 ### Step 4 — Compose Itinerary  
