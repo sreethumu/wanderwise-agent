@@ -212,6 +212,40 @@
     font-size: 9px; color: var(--muted); letter-spacing: 0.08em;
   }
   .pin-count span { display: flex; align-items: center; gap: 4px; }
+
+  /* Rich message formatting */
+  .bubble p { margin-bottom: 5px; }
+  .bubble p:last-child { margin-bottom: 0; }
+
+  .bubble .section-header {
+    font-weight: 600; font-size: 12px; color: var(--terracotta);
+    margin: 14px 0 6px; padding-bottom: 5px;
+    border-bottom: 1px solid var(--border); letter-spacing: 0.03em;
+  }
+  .bubble .section-header:first-child { margin-top: 0; }
+
+  .bubble .day-card {
+    background: var(--sand); border-left: 3px solid var(--gold);
+    border-radius: 0 8px 8px 0; padding: 10px 12px; margin: 8px 0;
+  }
+  .bubble .day-label {
+    font-weight: 600; font-size: 11px; color: var(--terracotta);
+    margin-bottom: 5px; letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .bubble .day-item {
+    font-size: 11px; color: var(--ink); line-height: 1.6;
+    padding: 2px 0 2px 12px; position: relative;
+  }
+  .bubble .day-item::before { content: '·'; position: absolute; left: 0; color: var(--gold); font-weight: bold; }
+
+  .bubble .msg-list { padding-left: 0; margin: 6px 0; list-style: none; }
+  .bubble .msg-list li {
+    font-size: 12px; line-height: 1.6; padding: 3px 0 3px 16px; position: relative;
+  }
+  .bubble .msg-list li::before {
+    content: '✦'; position: absolute; left: 0; font-size: 7px; color: var(--gold); top: 7px;
+  }
+  .bubble .msg-spacer { height: 5px; }
 </style>
 </head>
 <body>
@@ -520,12 +554,67 @@
   }
 
   function formatMessage(text) {
-    return text
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/\n\n/g, '</p><p>')
-      .replace(/\n/g, '<br/>')
-      .replace(/^(.*)$/, '<p>$1</p>');
+    const lines = text.split('\n');
+    let html = '';
+    let inList = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i];
+
+      // Inline formatting
+      line = line
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+      const plainLine = line.replace(/<[^>]+>/g, '').trim();
+
+      // Day headers: "Day 1:", "Day 1 -", "Day 1 —"
+      if (/^(Day\s+\d+[\s:—–\-])/i.test(plainLine)) {
+        if (inList) { html += '</ul>'; inList = false; }
+        html += `<div class="day-card"><div class="day-label">${line}</div>`;
+        let dayContent = '';
+        while (i + 1 < lines.length) {
+          const nextPlain = lines[i+1].replace(/<[^>]+>/g,'').trim();
+          if (nextPlain === '' || /^(Day\s+\d+[\s:—–\-])/i.test(nextPlain)) break;
+          i++;
+          let sub = lines[i]
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/^[\*\-•]\s*/, '');
+          if (sub.trim()) dayContent += `<div class="day-item">${sub}</div>`;
+        }
+        html += dayContent + '</div>';
+        continue;
+      }
+
+      // Section headers: bold-only line or line ending with colon
+      if (plainLine && ((line.trim().startsWith('<strong>') && line.trim().endsWith('</strong>')) ||
+          (plainLine.endsWith(':') && plainLine.length < 70 && !/^[\*\-•]/.test(plainLine)))) {
+        if (inList) { html += '</ul>'; inList = false; }
+        html += `<div class="section-header">${line}</div>`;
+        continue;
+      }
+
+      // Bullet points
+      if (/^[\*\-•]\s+/.test(plainLine)) {
+        if (!inList) { html += '<ul class="msg-list">'; inList = true; }
+        const item = line.replace(/^[\*\-•]\s+/, '');
+        html += `<li>${item}</li>`;
+        continue;
+      }
+
+      // Close list on non-bullet non-empty line
+      if (inList && plainLine !== '') { html += '</ul>'; inList = false; }
+
+      // Empty line
+      if (plainLine === '') { html += '<div class="msg-spacer"></div>'; continue; }
+
+      // Normal text
+      html += `<p>${line}</p>`;
+    }
+
+    if (inList) html += '</ul>';
+    return html;
   }
 
   function showTyping() {

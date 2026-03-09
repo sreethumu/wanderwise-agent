@@ -6,6 +6,7 @@ import asyncio
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
+import webbrowser
 
 load_dotenv()
 
@@ -242,4 +243,5 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_DEBUG", "true").lower() == "true"
     print(f"\n🌍 WanderWise server starting on http://localhost:{port}\n")
+    webbrowser.open(f"http://localhost:{port}")
     app.run(host="0.0.0.0", port=port, debug=debug)
