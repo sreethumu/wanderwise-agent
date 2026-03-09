@@ -18,23 +18,14 @@
     --terracotta: #c4633a;
     --sage: #7a9e87;
     --border: #e0d8cc;
-    --chat-bg: #ffffff;
-    --user-bubble: #1a1612;
-    --ai-bubble: #f5f0e8;
   }
 
-  html, body {
-    height: 100%;
-    font-family: 'DM Mono', monospace;
-    background: var(--cream);
-    color: var(--ink);
-    overflow: hidden;
-  }
+  html, body { height: 100%; font-family: 'DM Mono', monospace; background: var(--cream); color: var(--ink); overflow: hidden; }
 
-  /* ── LAYOUT ── */
+  /* ── LAYOUT: sidebar | chat | map ── */
   .app {
     display: grid;
-    grid-template-columns: 280px 1fr;
+    grid-template-columns: 260px 1fr 400px;
     grid-template-rows: 100vh;
     height: 100vh;
   }
@@ -45,534 +36,182 @@
     color: var(--sand);
     display: flex;
     flex-direction: column;
-    padding: 0;
     overflow: hidden;
     position: relative;
   }
 
   .sidebar::before {
     content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
     background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
     pointer-events: none;
   }
 
-  .logo-area {
-    padding: 32px 28px 24px;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-  }
+  .logo-area { padding: 28px 24px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); }
 
   .logo {
     font-family: 'Cormorant Garamond', serif;
-    font-size: 26px;
-    font-weight: 300;
-    letter-spacing: 0.04em;
-    color: var(--sand);
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    font-size: 24px; font-weight: 300; letter-spacing: 0.04em;
+    color: var(--sand); display: flex; align-items: center; gap: 10px;
   }
 
   .logo-icon {
-    width: 32px;
-    height: 32px;
-    background: var(--gold);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    flex-shrink: 0;
+    width: 30px; height: 30px; background: var(--gold); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;
   }
 
-  .logo-sub {
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    margin-top: 4px;
-    font-family: 'DM Mono', monospace;
-  }
+  .logo-sub { font-size: 9px; color: var(--muted); letter-spacing: 0.15em; text-transform: uppercase; margin-top: 4px; }
 
   .new-chat-btn {
-    margin: 20px 20px 0;
-    padding: 12px 16px;
-    background: rgba(201,168,76,0.12);
-    border: 1px solid rgba(201,168,76,0.3);
-    color: var(--gold-light);
-    border-radius: 8px;
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    margin: 16px 16px 0; padding: 10px 14px;
+    background: rgba(201,168,76,0.12); border: 1px solid rgba(201,168,76,0.3);
+    color: var(--gold-light); border-radius: 8px; font-family: 'DM Mono', monospace;
+    font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px;
   }
+  .new-chat-btn:hover { background: rgba(201,168,76,0.22); }
 
-  .new-chat-btn:hover {
-    background: rgba(201,168,76,0.22);
-    border-color: rgba(201,168,76,0.5);
-  }
-
-  .sidebar-section {
-    padding: 24px 20px 8px;
-  }
-
-  .sidebar-section-label {
-    font-size: 9px;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 10px;
-    padding-left: 8px;
-  }
+  .sidebar-section { padding: 20px 16px 6px; }
+  .sidebar-section-label { font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; padding-left: 6px; }
 
   .suggestion-chip {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 10px 12px;
-    background: transparent;
-    border: none;
-    color: rgba(245,240,232,0.65);
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    line-height: 1.5;
-    cursor: pointer;
-    border-radius: 6px;
-    transition: all 0.15s;
-    margin-bottom: 2px;
+    display: block; width: 100%; text-align: left; padding: 8px 10px;
+    background: transparent; border: none; color: rgba(245,240,232,0.65);
+    font-family: 'DM Mono', monospace; font-size: 10px; line-height: 1.5;
+    cursor: pointer; border-radius: 6px; transition: all 0.15s; margin-bottom: 2px;
   }
+  .suggestion-chip:hover { background: rgba(255,255,255,0.06); color: var(--sand); }
+  .suggestion-chip .chip-icon { display: block; font-size: 13px; margin-bottom: 2px; }
 
-  .suggestion-chip:hover {
-    background: rgba(255,255,255,0.06);
-    color: var(--sand);
-  }
-
-  .suggestion-chip .chip-icon {
-    display: block;
-    font-size: 14px;
-    margin-bottom: 2px;
-  }
-
-  /* Destination cards */
-  .dest-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    padding: 0 20px;
-    margin-top: 8px;
-  }
-
+  .dest-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 0 16px; margin-top: 6px; }
   .dest-card {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 8px;
-    padding: 12px 10px;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-align: center;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 8px; padding: 10px 8px; cursor: pointer; transition: all 0.2s; text-align: center;
   }
+  .dest-card:hover { background: rgba(255,255,255,0.08); border-color: rgba(201,168,76,0.3); transform: translateY(-1px); }
+  .dest-card .dest-emoji { font-size: 18px; display: block; margin-bottom: 3px; }
+  .dest-card .dest-name { font-size: 9px; color: rgba(245,240,232,0.7); letter-spacing: 0.05em; }
 
-  .dest-card:hover {
-    background: rgba(255,255,255,0.08);
-    border-color: rgba(201,168,76,0.3);
-    transform: translateY(-1px);
-  }
+  .sidebar-bottom { margin-top: auto; padding: 16px; border-top: 1px solid rgba(255,255,255,0.06); }
+  .status-pill { display: flex; align-items: center; gap: 8px; font-size: 9px; color: var(--muted); letter-spacing: 0.05em; }
+  .status-dot { width: 6px; height: 6px; background: var(--sage); border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-  .dest-card .dest-emoji { font-size: 20px; display: block; margin-bottom: 4px; }
-  .dest-card .dest-name { font-size: 10px; color: rgba(245,240,232,0.7); letter-spacing: 0.05em; }
+  /* ── CHAT ── */
+  .main { display: flex; flex-direction: column; height: 100vh; background: var(--cream); position: relative; border-right: 1px solid var(--border); }
 
-  .sidebar-bottom {
-    margin-top: auto;
-    padding: 20px;
-    border-top: 1px solid rgba(255,255,255,0.06);
-  }
-
-  .status-pill {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 0.05em;
-  }
-
-  .status-dot {
-    width: 6px;
-    height: 6px;
-    background: var(--sage);
-    border-radius: 50%;
-    animation: pulse 2s infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
-
-  /* ── MAIN CHAT ── */
-  .main {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    background: var(--cream);
-    position: relative;
-  }
-
-  /* Top bar */
   .topbar {
-    padding: 20px 32px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: var(--cream);
-    flex-shrink: 0;
+    padding: 16px 24px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--cream); flex-shrink: 0;
   }
+  .topbar-title { font-family: 'Cormorant Garamond', serif; font-size: 16px; font-weight: 400; font-style: italic; color: var(--muted); }
+  .topbar-pills { display: flex; gap: 6px; }
+  .topbar-pill { padding: 4px 10px; border: 1px solid var(--border); border-radius: 20px; font-size: 9px; letter-spacing: 0.08em; color: var(--muted); background: white; text-transform: uppercase; }
 
-  .topbar-title {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 18px;
-    font-weight: 400;
-    font-style: italic;
-    color: var(--muted);
-    letter-spacing: 0.02em;
-  }
-
-  .topbar-pills {
-    display: flex;
-    gap: 8px;
-  }
-
-  .topbar-pill {
-    padding: 5px 12px;
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    color: var(--muted);
-    background: white;
-    text-transform: uppercase;
-  }
-
-  /* Chat messages area */
-  .chat-area {
-    flex: 1;
-    overflow-y: auto;
-    padding: 32px;
-    scroll-behavior: smooth;
-  }
-
-  .chat-area::-webkit-scrollbar { width: 4px; }
-  .chat-area::-webkit-scrollbar-track { background: transparent; }
+  .chat-area { flex: 1; overflow-y: auto; padding: 24px; scroll-behavior: smooth; }
+  .chat-area::-webkit-scrollbar { width: 3px; }
   .chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-  /* Welcome screen */
-  .welcome {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 60vh;
-    text-align: center;
-    animation: fadeUp 0.6s ease forwards;
-  }
-
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
+  /* Welcome */
+  .welcome { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 55vh; text-align: center; animation: fadeUp 0.6s ease forwards; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
   .welcome-globe {
-    width: 80px;
-    height: 80px;
+    width: 64px; height: 64px;
     background: linear-gradient(135deg, var(--gold) 0%, var(--terracotta) 100%);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 36px;
-    margin-bottom: 24px;
-    box-shadow: 0 8px 32px rgba(201,168,76,0.3);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 28px; margin-bottom: 20px; box-shadow: 0 8px 32px rgba(201,168,76,0.3);
     animation: float 4s ease-in-out infinite;
   }
+  @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  .welcome h1 { font-family: 'Cormorant Garamond', serif; font-size: 34px; font-weight: 300; line-height: 1.1; margin-bottom: 10px; }
+  .welcome h1 em { font-style: italic; color: var(--terracotta); }
+  .welcome p { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; max-width: 320px; line-height: 1.8; margin-bottom: 32px; }
 
-  @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-8px); }
-  }
-
-  .welcome h1 {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 42px;
-    font-weight: 300;
-    letter-spacing: -0.01em;
-    line-height: 1.1;
-    margin-bottom: 12px;
-    color: var(--ink);
-  }
-
-  .welcome h1 em {
-    font-style: italic;
-    color: var(--terracotta);
-  }
-
-  .welcome p {
-    font-size: 12px;
-    color: var(--muted);
-    letter-spacing: 0.05em;
-    max-width: 360px;
-    line-height: 1.8;
-    margin-bottom: 40px;
-  }
-
-  .welcome-prompts {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    max-width: 560px;
-    width: 100%;
-  }
-
+  .welcome-prompts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-width: 480px; width: 100%; }
   .welcome-prompt {
-    background: white;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px 18px;
-    text-align: left;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-family: 'DM Mono', monospace;
+    background: white; border: 1px solid var(--border); border-radius: 10px;
+    padding: 13px 15px; text-align: left; cursor: pointer; transition: all 0.2s; font-family: 'DM Mono', monospace;
   }
-
-  .welcome-prompt:hover {
-    border-color: var(--gold);
-    box-shadow: 0 4px 16px rgba(201,168,76,0.15);
-    transform: translateY(-2px);
-  }
-
-  .welcome-prompt .wp-icon { font-size: 20px; margin-bottom: 8px; display: block; }
-  .welcome-prompt .wp-title { font-size: 11px; color: var(--ink); font-weight: 500; margin-bottom: 4px; letter-spacing: 0.03em; }
-  .welcome-prompt .wp-desc { font-size: 10px; color: var(--muted); line-height: 1.5; }
+  .welcome-prompt:hover { border-color: var(--gold); box-shadow: 0 4px 16px rgba(201,168,76,0.15); transform: translateY(-2px); }
+  .welcome-prompt .wp-icon { font-size: 18px; margin-bottom: 6px; display: block; }
+  .welcome-prompt .wp-title { font-size: 10px; color: var(--ink); font-weight: 500; margin-bottom: 3px; }
+  .welcome-prompt .wp-desc { font-size: 9px; color: var(--muted); line-height: 1.5; }
 
   /* Messages */
-  .message {
-    display: flex;
-    gap: 14px;
-    margin-bottom: 24px;
-    animation: fadeUp 0.3s ease forwards;
-  }
-
+  .message { display: flex; gap: 12px; margin-bottom: 20px; animation: fadeUp 0.3s ease forwards; }
   .message.user { flex-direction: row-reverse; }
-
-  .avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    margin-top: 2px;
-  }
-
-  .avatar.ai {
-    background: linear-gradient(135deg, var(--gold) 0%, var(--terracotta) 100%);
-  }
-
-  .avatar.user {
-    background: var(--ink);
-    color: var(--sand);
-    font-size: 11px;
-    letter-spacing: 0.05em;
-    font-family: 'DM Mono', monospace;
-  }
-
-  .bubble {
-    max-width: 72%;
-    padding: 14px 18px;
-    border-radius: 16px;
-    font-size: 13px;
-    line-height: 1.7;
-    letter-spacing: 0.01em;
-  }
-
-  .bubble.ai {
-    background: white;
-    border: 1px solid var(--border);
-    border-top-left-radius: 4px;
-    color: var(--ink);
-  }
-
-  .bubble.user {
-    background: var(--ink);
-    color: var(--sand);
-    border-top-right-radius: 4px;
-  }
-
+  .avatar { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; margin-top: 2px; }
+  .avatar.ai { background: linear-gradient(135deg, var(--gold) 0%, var(--terracotta) 100%); }
+  .avatar.user { background: var(--ink); color: var(--sand); font-size: 9px; letter-spacing: 0.05em; font-family: 'DM Mono', monospace; }
+  .bubble { max-width: 80%; padding: 12px 16px; border-radius: 14px; font-size: 12px; line-height: 1.7; letter-spacing: 0.01em; }
+  .bubble.ai { background: white; border: 1px solid var(--border); border-top-left-radius: 4px; color: var(--ink); }
+  .bubble.user { background: var(--ink); color: var(--sand); border-top-right-radius: 4px; }
   .bubble strong { font-weight: 500; }
 
-  /* Typing indicator */
-  .typing-indicator {
-    display: flex;
-    gap: 14px;
-    margin-bottom: 24px;
-    align-items: flex-start;
-  }
-
-  .typing-dots {
-    background: white;
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    border-top-left-radius: 4px;
-    padding: 14px 18px;
-    display: flex;
-    gap: 5px;
-    align-items: center;
-  }
-
-  .typing-dots span {
-    width: 6px;
-    height: 6px;
-    background: var(--muted);
-    border-radius: 50%;
-    animation: bounce 1.2s infinite;
-  }
-
+  /* Typing */
+  .typing-indicator { display: flex; gap: 12px; margin-bottom: 20px; align-items: flex-start; }
+  .typing-dots { background: white; border: 1px solid var(--border); border-radius: 14px; border-top-left-radius: 4px; padding: 12px 16px; display: flex; gap: 4px; align-items: center; }
+  .typing-dots span { width: 5px; height: 5px; background: var(--muted); border-radius: 50%; animation: bounce 1.2s infinite; }
   .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
   .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-5px); } }
 
-  @keyframes bounce {
-    0%, 60%, 100% { transform: translateY(0); }
-    30% { transform: translateY(-6px); }
-  }
-
-  /* Input area */
-  .input-area {
-    padding: 20px 32px 28px;
-    background: var(--cream);
-    border-top: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-
+  /* Input */
+  .input-area { padding: 16px 24px 22px; background: var(--cream); border-top: 1px solid var(--border); flex-shrink: 0; }
   .input-wrapper {
-    background: white;
-    border: 1.5px solid var(--border);
-    border-radius: 14px;
-    display: flex;
-    align-items: flex-end;
-    gap: 12px;
-    padding: 14px 16px;
+    background: white; border: 1.5px solid var(--border); border-radius: 12px;
+    display: flex; align-items: flex-end; gap: 10px; padding: 12px 14px;
     transition: border-color 0.2s, box-shadow 0.2s;
   }
-
-  .input-wrapper:focus-within {
-    border-color: var(--gold);
-    box-shadow: 0 0 0 3px rgba(201,168,76,0.1);
-  }
-
-  textarea {
-    flex: 1;
-    border: none;
-    outline: none;
-    background: transparent;
-    font-family: 'DM Mono', monospace;
-    font-size: 13px;
-    color: var(--ink);
-    resize: none;
-    max-height: 120px;
-    line-height: 1.6;
-    letter-spacing: 0.01em;
-  }
-
+  .input-wrapper:focus-within { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,168,76,0.1); }
+  textarea { flex: 1; border: none; outline: none; background: transparent; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--ink); resize: none; max-height: 100px; line-height: 1.6; }
   textarea::placeholder { color: var(--muted); }
-
-  .send-btn {
-    width: 36px;
-    height: 36px;
-    background: var(--ink);
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-    flex-shrink: 0;
-    color: white;
-  }
-
+  .send-btn { width: 32px; height: 32px; background: var(--ink); border: none; border-radius: 7px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; color: white; }
   .send-btn:hover { background: var(--terracotta); transform: scale(1.05); }
   .send-btn:disabled { background: var(--border); cursor: not-allowed; transform: none; }
+  .send-btn svg { width: 14px; height: 14px; }
+  .input-hint { font-size: 9px; color: var(--muted); letter-spacing: 0.05em; margin-top: 6px; padding-left: 2px; display: flex; justify-content: space-between; }
 
-  .send-btn svg { width: 16px; height: 16px; }
-
-  .input-hint {
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 0.05em;
-    margin-top: 8px;
-    padding-left: 4px;
-    display: flex;
-    justify-content: space-between;
-  }
-
-  /* Trip tags that appear in messages */
-  .trip-tag {
-    display: inline-block;
-    padding: 2px 8px;
-    background: rgba(201,168,76,0.15);
-    border: 1px solid rgba(201,168,76,0.3);
-    border-radius: 4px;
-    font-size: 11px;
-    color: var(--terracotta);
-    margin: 2px;
-  }
-
-  /* Itinerary card style inside bubble */
-  .itinerary-day {
-    margin-top: 10px;
-    padding: 10px 12px;
-    background: var(--sand);
-    border-radius: 8px;
-    border-left: 3px solid var(--gold);
-    font-size: 12px;
-  }
-
-  .itinerary-day strong {
-    color: var(--terracotta);
-    display: block;
-    margin-bottom: 4px;
-  }
-
-  /* Scroll to bottom button */
   .scroll-btn {
-    position: absolute;
-    bottom: 120px;
-    right: 32px;
-    width: 36px;
-    height: 36px;
-    background: white;
-    border: 1px solid var(--border);
-    border-radius: 50%;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    font-size: 14px;
-    transition: all 0.2s;
-    color: var(--muted);
+    position: absolute; bottom: 100px; right: 20px; width: 32px; height: 32px;
+    background: white; border: 1px solid var(--border); border-radius: 50%;
+    display: none; align-items: center; justify-content: center;
+    cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 12px; color: var(--muted);
   }
-
   .scroll-btn:hover { background: var(--sand); }
   .scroll-btn.visible { display: flex; }
+
+  /* ── MAP PANEL ── */
+  .map-panel { display: flex; flex-direction: column; height: 100vh; background: var(--cream); }
+
+  .map-header {
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+  }
+  .map-header-title { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+
+  .map-legend { display: flex; gap: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 9px; color: var(--muted); letter-spacing: 0.05em; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .legend-dot.hotel { background: #c4633a; }
+  .legend-dot.activity { background: #4a90d9; }
+
+  #map { flex: 1; width: 100%; }
+
+  .map-placeholder {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: var(--muted); gap: 12px; padding: 32px;
+  }
+  .map-placeholder-icon { font-size: 40px; opacity: 0.4; }
+  .map-placeholder p { font-size: 11px; text-align: center; line-height: 1.7; letter-spacing: 0.03em; max-width: 220px; }
+
+  .pin-count {
+    display: flex; gap: 8px; padding: 10px 20px;
+    border-top: 1px solid var(--border); flex-shrink: 0;
+    font-size: 9px; color: var(--muted); letter-spacing: 0.08em;
+  }
+  .pin-count span { display: flex; align-items: center; gap: 4px; }
 </style>
 </head>
 <body>
@@ -589,61 +228,40 @@
       <div class="logo-sub">AI Travel Planner</div>
     </div>
 
-    <button class="new-chat-btn" onclick="newChat()">
-      <span>＋</span> New Trip
-    </button>
+    <button class="new-chat-btn" onclick="newChat()">＋ New Trip</button>
 
     <div class="sidebar-section">
       <div class="sidebar-section-label">Quick Prompts</div>
       <button class="suggestion-chip" onclick="usePrompt('Plan a 7-day family trip to Tokyo with kids aged 10. Mid-range budget, interests: historical sites, food, and nature.')">
-        <span class="chip-icon">🏯</span>
-        Family trip to Tokyo
+        <span class="chip-icon">🏯</span>Family trip to Tokyo
       </button>
       <button class="suggestion-chip" onclick="usePrompt('Plan a romantic 5-day honeymoon in Bali. Luxury budget, interests: beaches, spas, and local cuisine.')">
-        <span class="chip-icon">🌺</span>
-        Honeymoon in Bali
+        <span class="chip-icon">🌺</span>Honeymoon in Bali
       </button>
       <button class="suggestion-chip" onclick="usePrompt('Plan a 4-day solo trip to Paris. Mid-range budget, interests: art, architecture, and food.')">
-        <span class="chip-icon">🗼</span>
-        Solo trip to Paris
+        <span class="chip-icon">🗼</span>Solo trip to Paris
       </button>
       <button class="suggestion-chip" onclick="usePrompt('Plan a 10-day backpacking trip through Southeast Asia. Budget travel, interests: culture, street food, and temples.')">
-        <span class="chip-icon">🎒</span>
-        Backpacking SE Asia
+        <span class="chip-icon">🎒</span>Backpacking SE Asia
       </button>
     </div>
 
-    <div class="sidebar-section" style="margin-top: 8px;">
+    <div class="sidebar-section" style="margin-top:6px">
       <div class="sidebar-section-label">Popular Destinations</div>
     </div>
     <div class="dest-grid">
-      <div class="dest-card" onclick="usePrompt('Plan a trip to Rome, Italy.')">
-        <span class="dest-emoji">🏛️</span>
-        <span class="dest-name">Rome</span>
-      </div>
-      <div class="dest-card" onclick="usePrompt('Plan a trip to New York City.')">
-        <span class="dest-emoji">🗽</span>
-        <span class="dest-name">New York</span>
-      </div>
-      <div class="dest-card" onclick="usePrompt('Plan a trip to Kyoto, Japan.')">
-        <span class="dest-emoji">⛩️</span>
-        <span class="dest-name">Kyoto</span>
-      </div>
-      <div class="dest-card" onclick="usePrompt('Plan a trip to Dubai.')">
-        <span class="dest-emoji">🌆</span>
-        <span class="dest-name">Dubai</span>
-      </div>
+      <div class="dest-card" onclick="usePrompt('Plan a trip to Rome, Italy.')"><span class="dest-emoji">🏛️</span><span class="dest-name">Rome</span></div>
+      <div class="dest-card" onclick="usePrompt('Plan a trip to New York City.')"><span class="dest-emoji">🗽</span><span class="dest-name">New York</span></div>
+      <div class="dest-card" onclick="usePrompt('Plan a trip to Kyoto, Japan.')"><span class="dest-emoji">⛩️</span><span class="dest-name">Kyoto</span></div>
+      <div class="dest-card" onclick="usePrompt('Plan a trip to Dubai.')"><span class="dest-emoji">🌆</span><span class="dest-name">Dubai</span></div>
     </div>
 
     <div class="sidebar-bottom">
-      <div class="status-pill">
-        <div class="status-dot"></div>
-        Agent online · Gemini 2.5 Flash
-      </div>
+      <div class="status-pill"><div class="status-dot"></div>Agent online · Gemini 2.5 Flash</div>
     </div>
   </aside>
 
-  <!-- MAIN CHAT -->
+  <!-- CHAT -->
   <main class="main">
     <div class="topbar">
       <div class="topbar-title">your personal travel companion</div>
@@ -655,32 +273,22 @@
     </div>
 
     <div class="chat-area" id="chatArea">
-      <!-- Welcome screen shown initially -->
       <div class="welcome" id="welcomeScreen">
         <div class="welcome-globe">✈️</div>
         <h1>Where do you want<br/>to <em>wander</em> next?</h1>
-        <p>Tell me your dream destination and I'll craft a personalised itinerary — hotels, activities, and a full budget breakdown.</p>
-
+        <p>Tell me your dream destination and I'll craft a personalised itinerary with hotels, activities, and an interactive map.</p>
         <div class="welcome-prompts">
           <div class="welcome-prompt" onclick="usePrompt('Plan a 7-day luxury trip to Tokyo for 2 people. We love historical sites, food, and nightlife.')">
-            <span class="wp-icon">🏯</span>
-            <div class="wp-title">Tokyo, Japan</div>
-            <div class="wp-desc">7 days · Luxury · History & Food</div>
+            <span class="wp-icon">🏯</span><div class="wp-title">Tokyo, Japan</div><div class="wp-desc">7 days · Luxury · History & Food</div>
           </div>
           <div class="welcome-prompt" onclick="usePrompt('Plan a 5-day mid-range trip to Barcelona for a couple. We love architecture, beaches, and tapas.')">
-            <span class="wp-icon">🌊</span>
-            <div class="wp-title">Barcelona, Spain</div>
-            <div class="wp-desc">5 days · Mid-range · Beach & Culture</div>
+            <span class="wp-icon">🌊</span><div class="wp-title">Barcelona, Spain</div><div class="wp-desc">5 days · Mid-range · Beach & Culture</div>
           </div>
           <div class="welcome-prompt" onclick="usePrompt('Plan a 10-day budget solo adventure to Thailand. I love temples, street food, and nature.')">
-            <span class="wp-icon">🌿</span>
-            <div class="wp-title">Thailand Adventure</div>
-            <div class="wp-desc">10 days · Budget · Temples & Nature</div>
+            <span class="wp-icon">🌿</span><div class="wp-title">Thailand Adventure</div><div class="wp-desc">10 days · Budget · Temples & Nature</div>
           </div>
           <div class="welcome-prompt" onclick="usePrompt('Plan a 3-day weekend trip to New York City for 2. Mid-range budget, we love food, museums, and shopping.')">
-            <span class="wp-icon">🗽</span>
-            <div class="wp-title">NYC Weekend</div>
-            <div class="wp-desc">3 days · Mid-range · Culture & Food</div>
+            <span class="wp-icon">🗽</span><div class="wp-title">NYC Weekend</div><div class="wp-desc">3 days · Mid-range · Culture & Food</div>
           </div>
         </div>
       </div>
@@ -690,60 +298,181 @@
 
     <div class="input-area">
       <div class="input-wrapper">
-        <textarea
-          id="userInput"
-          placeholder="Describe your dream trip... destination, duration, budget, interests"
-          rows="1"
-          onkeydown="handleKey(event)"
-          oninput="autoResize(this)"
-        ></textarea>
+        <textarea id="userInput" placeholder="Describe your dream trip..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
         <button class="send-btn" id="sendBtn" onclick="sendMessage()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="22" y1="2" x2="11" y2="13"></line>
-            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            <line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
           </svg>
         </button>
       </div>
-      <div class="input-hint">
-        <span>↵ send · shift+↵ new line</span>
-        <span>powered by WanderWise AI</span>
-      </div>
+      <div class="input-hint"><span>↵ send · shift+↵ new line</span><span>powered by WanderWise AI</span></div>
     </div>
   </main>
+
+  <!-- MAP PANEL -->
+  <div class="map-panel">
+    <div class="map-header">
+      <div class="map-header-title">📍 Trip Map</div>
+      <div class="map-legend">
+        <div class="legend-item"><div class="legend-dot hotel"></div>Hotels</div>
+        <div class="legend-item"><div class="legend-dot activity"></div>Activities</div>
+      </div>
+    </div>
+
+    <div id="mapPlaceholder" class="map-placeholder">
+      <div class="map-placeholder-icon">🗺️</div>
+      <p>Your trip map will appear here once the agent finds hotels and activities for you.</p>
+    </div>
+    <div id="map" style="display:none"></div>
+
+    <div class="pin-count" id="pinCount" style="display:none">
+      <span><div class="legend-dot hotel" style="width:7px;height:7px;border-radius:50%;background:#c4633a;display:inline-block"></div> <span id="hotelCount">0</span> hotels</span>
+      <span>·</span>
+      <span><div class="legend-dot activity" style="width:7px;height:7px;border-radius:50%;background:#4a90d9;display:inline-block"></div> <span id="activityCount">0</span> activities</span>
+    </div>
+  </div>
 
 </div>
 
 <script>
+  // Fetch the Google Maps API key from the backend, then load the Maps script
+  async function loadGoogleMaps() {
+    try {
+      const res = await fetch('/api/config');
+      const cfg = await res.json();
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${cfg.google_maps_key}&callback=initMap`;
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    } catch (e) {
+      console.error('Could not load Google Maps:', e);
+    }
+  }
+  loadGoogleMaps();
+</script>
+
+<script>
   const chatArea = document.getElementById('chatArea');
-  const welcomeScreen = document.getElementById('welcomeScreen');
   const userInput = document.getElementById('userInput');
   const sendBtn = document.getElementById('sendBtn');
   const scrollBtn = document.getElementById('scrollBtn');
 
   let isTyping = false;
+  let map = null;
+  let markers = [];
 
-  // Unique session ID per browser tab — keeps conversation history on the backend
   const SESSION_ID = 'session-' + Math.random().toString(36).slice(2, 10);
-
-  // Point to your Flask backend — change this when you deploy
   const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:5000'
-    : '';  // Empty string = same domain (works when deployed)
+    ? 'http://localhost:5000' : '';
 
+  // ── Google Maps init (called by Maps API callback) ──
+  function initMap() {
+    map = new google.maps.Map(document.getElementById('map'), {
+      zoom: 12,
+      center: { lat: 35.6762, lng: 139.6503 }, // default: Tokyo
+      styles: [
+        { featureType: 'all', elementType: 'geometry', stylers: [{ saturation: -20 }] },
+        { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#d4e8f0' }] },
+        { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#f5f0e8' }] },
+        { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#e8f0e4' }] },
+        { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+      ],
+      disableDefaultUI: false,
+      zoomControl: true,
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: false,
+    });
+  }
+
+  // ── Update map with hotels and activities ──
+  function updateMap(locations) {
+    if (!map || !locations) return;
+
+    // Clear old markers
+    markers.forEach(m => m.setMap(null));
+    markers = [];
+
+    const bounds = new google.maps.LatLngBounds();
+    let hotelCount = 0;
+    let activityCount = 0;
+    const infoWindow = new google.maps.InfoWindow();
+
+    // Show map, hide placeholder
+    document.getElementById('mapPlaceholder').style.display = 'none';
+    document.getElementById('map').style.display = 'block';
+    document.getElementById('pinCount').style.display = 'flex';
+
+    (locations.hotels || []).forEach(h => {
+      if (!h.lat || !h.lon) return;
+      const pos = { lat: h.lat, lng: h.lon };
+      const marker = new google.maps.Marker({
+        position: pos, map,
+        title: h.name,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          fillColor: '#c4633a', fillOpacity: 1,
+          strokeColor: '#ffffff', strokeWeight: 2, scale: 9,
+        }
+      });
+      marker.addListener('click', () => {
+        infoWindow.setContent(`
+          <div style="font-family:'DM Mono',monospace;padding:4px 2px;max-width:200px">
+            <div style="font-weight:500;font-size:12px;color:#1a1612;margin-bottom:4px">🏨 ${h.name}</div>
+            <div style="font-size:10px;color:#7a7268;line-height:1.5">${h.address || ''}</div>
+            ${h.rating ? `<div style="font-size:10px;color:#c9a84c;margin-top:4px">★ ${h.rating}</div>` : ''}
+          </div>`);
+        infoWindow.open(map, marker);
+      });
+      markers.push(marker);
+      bounds.extend(pos);
+      hotelCount++;
+    });
+
+    (locations.activities || []).forEach(a => {
+      if (!a.lat || !a.lon) return;
+      const pos = { lat: a.lat, lng: a.lon };
+      const marker = new google.maps.Marker({
+        position: pos, map,
+        title: a.name,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          fillColor: '#4a90d9', fillOpacity: 1,
+          strokeColor: '#ffffff', strokeWeight: 2, scale: 7,
+        }
+      });
+      marker.addListener('click', () => {
+        infoWindow.setContent(`
+          <div style="font-family:'DM Mono',monospace;padding:4px 2px;max-width:200px">
+            <div style="font-weight:500;font-size:12px;color:#1a1612;margin-bottom:4px">📍 ${a.name}</div>
+            <div style="font-size:10px;color:#7a7268;line-height:1.5">${a.address || ''}</div>
+            ${a.rating ? `<div style="font-size:10px;color:#c9a84c;margin-top:4px">★ ${a.rating}</div>` : ''}
+          </div>`);
+        infoWindow.open(map, marker);
+      });
+      markers.push(marker);
+      bounds.extend(pos);
+      activityCount++;
+    });
+
+    if (markers.length > 0) map.fitBounds(bounds);
+    document.getElementById('hotelCount').textContent = hotelCount;
+    document.getElementById('activityCount').textContent = activityCount;
+  }
+
+  // ── Send message ──
   async function sendMessage() {
     const text = userInput.value.trim();
     if (!text || isTyping) return;
 
-    // Hide welcome screen
     const ws = document.getElementById('welcomeScreen');
     if (ws) ws.style.display = 'none';
 
-    // Add user message
     appendMessage('user', text);
     userInput.value = '';
     autoResize(userInput);
 
-    // Show typing indicator
     const typingEl = showTyping();
     isTyping = true;
     sendBtn.disabled = true;
@@ -752,24 +481,21 @@
       const response = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text,
-          session_id: SESSION_ID,
-        })
+        body: JSON.stringify({ message: text, session_id: SESSION_ID })
       });
 
       const data = await response.json();
-
-      if (!response.ok || data.error) {
-        throw new Error(data.error || 'Server error');
-      }
+      if (!response.ok || data.error) throw new Error(data.error || 'Server error');
 
       typingEl.remove();
       appendMessage('ai', data.reply);
 
+      // Update map if locations were returned
+      if (data.locations) updateMap(data.locations);
+
     } catch (err) {
       typingEl.remove();
-      appendMessage('ai', '✦ I\'m having trouble connecting to the WanderWise agent. Please make sure the server is running and try again.');
+      appendMessage('ai', '✦ I\'m having trouble connecting. Please make sure the server is running and try again.');
       console.error('Chat error:', err);
     }
 
@@ -781,15 +507,12 @@
   function appendMessage(role, text) {
     const msg = document.createElement('div');
     msg.className = `message ${role}`;
-
     const avatar = document.createElement('div');
     avatar.className = `avatar ${role}`;
     avatar.textContent = role === 'ai' ? '✦' : 'you';
-
     const bubble = document.createElement('div');
     bubble.className = `bubble ${role}`;
     bubble.innerHTML = formatMessage(text);
-
     msg.appendChild(avatar);
     msg.appendChild(bubble);
     chatArea.appendChild(msg);
@@ -797,7 +520,6 @@
   }
 
   function formatMessage(text) {
-    // Convert markdown-like formatting to HTML
     return text
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
@@ -809,18 +531,15 @@
   function showTyping() {
     const el = document.createElement('div');
     el.className = 'typing-indicator';
-    el.innerHTML = `
-      <div class="avatar ai">✦</div>
-      <div class="typing-dots">
-        <span></span><span></span><span></span>
-      </div>`;
+    el.innerHTML = `<div class="avatar ai">✦</div><div class="typing-dots"><span></span><span></span><span></span></div>`;
     chatArea.appendChild(el);
     scrollToBottom();
     return el;
   }
 
   function usePrompt(text) {
-    if (welcomeScreen) welcomeScreen.style.display = 'none';
+    const ws = document.getElementById('welcomeScreen');
+    if (ws) ws.style.display = 'none';
     userInput.value = text;
     autoResize(userInput);
     userInput.focus();
@@ -828,12 +547,18 @@
   }
 
   function newChat() {
-    // Reset session on the backend
     fetch(`${API_BASE}/api/reset`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ session_id: SESSION_ID })
-    }).catch(() => {});  // silently ignore if server is down
+    }).catch(() => {});
+
+    // Clear map
+    markers.forEach(m => m.setMap(null));
+    markers = [];
+    document.getElementById('mapPlaceholder').style.display = 'flex';
+    document.getElementById('map').style.display = 'none';
+    document.getElementById('pinCount').style.display = 'none';
+
     chatArea.innerHTML = '';
     const welcome = document.createElement('div');
     welcome.id = 'welcomeScreen';
@@ -841,51 +566,30 @@
     welcome.innerHTML = `
       <div class="welcome-globe">✈️</div>
       <h1>Where do you want<br/>to <em>wander</em> next?</h1>
-      <p>Tell me your dream destination and I'll craft a personalised itinerary — hotels, activities, and a full budget breakdown.</p>
+      <p>Tell me your dream destination and I'll craft a personalised itinerary with hotels, activities, and an interactive map.</p>
       <div class="welcome-prompts">
         <div class="welcome-prompt" onclick="usePrompt('Plan a 7-day luxury trip to Tokyo for 2 people. We love historical sites, food, and nightlife.')">
-          <span class="wp-icon">🏯</span>
-          <div class="wp-title">Tokyo, Japan</div>
-          <div class="wp-desc">7 days · Luxury · History & Food</div>
+          <span class="wp-icon">🏯</span><div class="wp-title">Tokyo, Japan</div><div class="wp-desc">7 days · Luxury · History & Food</div>
         </div>
         <div class="welcome-prompt" onclick="usePrompt('Plan a 5-day mid-range trip to Barcelona for a couple. We love architecture, beaches, and tapas.')">
-          <span class="wp-icon">🌊</span>
-          <div class="wp-title">Barcelona, Spain</div>
-          <div class="wp-desc">5 days · Mid-range · Beach & Culture</div>
+          <span class="wp-icon">🌊</span><div class="wp-title">Barcelona, Spain</div><div class="wp-desc">5 days · Mid-range · Beach & Culture</div>
         </div>
         <div class="welcome-prompt" onclick="usePrompt('Plan a 10-day budget solo adventure to Thailand. I love temples, street food, and nature.')">
-          <span class="wp-icon">🌿</span>
-          <div class="wp-title">Thailand Adventure</div>
-          <div class="wp-desc">10 days · Budget · Temples & Nature</div>
+          <span class="wp-icon">🌿</span><div class="wp-title">Thailand Adventure</div><div class="wp-desc">10 days · Budget · Temples & Nature</div>
         </div>
         <div class="welcome-prompt" onclick="usePrompt('Plan a 3-day weekend trip to New York City for 2. Mid-range budget, we love food, museums, and shopping.')">
-          <span class="wp-icon">🗽</span>
-          <div class="wp-title">NYC Weekend</div>
-          <div class="wp-desc">3 days · Mid-range · Culture & Food</div>
+          <span class="wp-icon">🗽</span><div class="wp-title">NYC Weekend</div><div class="wp-desc">3 days · Mid-range · Culture & Food</div>
         </div>
       </div>`;
     chatArea.appendChild(welcome);
   }
 
-  function handleKey(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  }
-
-  function autoResize(el) {
-    el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-  }
-
-  function scrollToBottom() {
-    chatArea.scrollTop = chatArea.scrollHeight;
-  }
-
+  function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+  function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 100) + 'px'; }
+  function scrollToBottom() { chatArea.scrollTop = chatArea.scrollHeight; }
   chatArea.addEventListener('scroll', () => {
-    const nearBottom = chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight < 100;
-    scrollBtn.classList.toggle('visible', !nearBottom && chatArea.scrollTop > 200);
+    const near = chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight < 100;
+    scrollBtn.classList.toggle('visible', !near && chatArea.scrollTop > 200);
   });
 </script>
 </body>
