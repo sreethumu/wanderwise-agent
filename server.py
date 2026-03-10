@@ -384,6 +384,61 @@ def export_pdf():
         print(f"[ERROR] PDF export failed: {e}")
         return jsonify({"error": str(e)}), 500
 
+
+@app.route("/api/suggestions", methods=["POST"])
+def get_suggestions():
+    """
+    Generate 4 follow-up suggestions using Gemini based on the latest AI reply.
+    Expects JSON: { "reply": str, "user_message": str }
+    Returns: { "suggestions": [str, str, str, str] }
+    """
+    import google.generativeai as genai
+
+    data = request.get_json()
+    if not data or "reply" not in data:
+        return jsonify({"suggestions": []}), 400
+
+    ai_reply = data.get("reply", "")[:600]
+    user_message = data.get("user_message", "")
+
+    try:
+        genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+        model = genai.GenerativeModel("gemini-2.0-flash")
+
+        prompt = f"""The user asked a travel question and got a travel plan back.
+
+User asked: "{user_message}"
+AI responded with: {ai_reply}
+
+Generate exactly 4 short follow-up suggestions the user might want to ask next.
+Rules:
+- Return ONLY a JSON array of 4 strings, nothing else, no markdown
+- Each string must be under 60 characters
+- Make them varied: mix modifications, additions, and questions
+- Make them specific to this exact trip
+- Examples: "Add a day trip to Kyoto", "Switch to luxury hotels", "What's the best time to visit?", "Add more food experiences"
+"""
+
+        response = model.generate_content(prompt)
+        raw = response.text.strip().replace("```json", "").replace("```", "").strip()
+
+        import json
+        suggestions = json.loads(raw)
+        if not isinstance(suggestions, list):
+            raise ValueError("Not a list")
+
+        return jsonify({"suggestions": suggestions[:4]})
+
+    except Exception as e:
+        print(f"[ERROR] Suggestions failed: {e}")
+        # Fallback hardcoded suggestions
+        return jsonify({"suggestions": [
+            "Add more restaurant recommendations",
+            "Switch to a different budget tier",
+            "Extend the trip by 2 days",
+            "What's the best time of year to visit?"
+        ]})
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_DEBUG", "true").lower() == "true"

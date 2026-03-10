@@ -172,6 +172,34 @@
   .send-btn:disabled { background: var(--border); cursor: not-allowed; transform: none; }
   .send-btn svg { width: 14px; height: 14px; }
 
+
+  /* ── Follow-up suggestions ── */
+  .suggestions-row {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin: 10px 0 4px 44px;
+  }
+  .suggestion-pill {
+    background: var(--cream); border: 1.5px solid var(--border);
+    border-radius: 20px; padding: 7px 14px;
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    color: var(--ink); cursor: pointer; transition: all 0.2s;
+    letter-spacing: 0.02em; line-height: 1.4;
+    max-width: 280px; text-align: left;
+  }
+  .suggestion-pill:hover {
+    border-color: var(--gold); background: rgba(201,168,76,0.07);
+    color: var(--terracotta); transform: translateY(-1px);
+  }
+  .suggestions-loading {
+    margin: 10px 0 4px 44px;
+    font-size: 10px; color: var(--muted); letter-spacing: 0.05em;
+    font-family: 'DM Mono', monospace;
+  }
+  @media (max-width: 768px) {
+    .suggestions-row { margin-left: 0; }
+    .suggestion-pill { font-size: 11px; padding: 8px 14px; }
+  }
+
   /* PDF export button */
   .export-btn {
     width: 32px; height: 32px; background: transparent;
@@ -683,6 +711,7 @@
 
       typingEl.remove();
       appendMessage('ai', data.reply);
+      generateSuggestions(data.reply, text);
 
       // Filter locations to only show ones mentioned in the agent's reply
       if (data.locations) {
@@ -890,6 +919,50 @@
     document.querySelector('.sidebar').classList.remove('open');
     document.getElementById('overlay').classList.remove('open');
     document.getElementById('tabMenu').classList.remove('active');
+  }
+
+
+  // ── Generate follow-up suggestions via backend (Gemini) ──
+  async function generateSuggestions(aiReply, userMessage) {
+    const loadingEl = document.createElement('div');
+    loadingEl.className = 'suggestions-loading';
+    loadingEl.textContent = '✦ generating follow-ups...';
+    chatArea.appendChild(loadingEl);
+    scrollToBottom();
+
+    try {
+      const response = await fetch(`${API_BASE}/api/suggestions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reply: aiReply, user_message: userMessage })
+      });
+
+      const data = await response.json();
+      const suggestions = data.suggestions || [];
+
+      loadingEl.remove();
+      if (suggestions.length === 0) return;
+
+      const row = document.createElement('div');
+      row.className = 'suggestions-row';
+      suggestions.slice(0, 4).forEach(s => {
+        const pill = document.createElement('button');
+        pill.className = 'suggestion-pill';
+        pill.textContent = s;
+        pill.onclick = () => {
+          document.querySelectorAll('.suggestions-row, .suggestions-loading').forEach(el => el.remove());
+          userInput.value = s;
+          sendMessage();
+        };
+        row.appendChild(pill);
+      });
+      chatArea.appendChild(row);
+      scrollToBottom();
+
+    } catch (err) {
+      loadingEl.remove();
+      console.error('Suggestions error:', err);
+    }
   }
 
   function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
