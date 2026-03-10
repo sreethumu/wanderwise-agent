@@ -684,8 +684,22 @@
       typingEl.remove();
       appendMessage('ai', data.reply);
 
-      // Update map if locations were returned
-      if (data.locations) updateMap(data.locations);
+      // Filter locations to only show ones mentioned in the agent's reply
+      if (data.locations) {
+        const reply = data.reply.toLowerCase();
+        const filtered = {
+          hotels: (data.locations.hotels || []).filter(h =>
+            h.name && reply.includes(h.name.toLowerCase())
+          ),
+          activities: (data.locations.activities || []).filter(a =>
+            a.name && reply.includes(a.name.toLowerCase())
+          )
+        };
+        // Fallback: if nothing matched, show top 2 hotels and top 5 activities
+        if (filtered.hotels.length === 0) filtered.hotels = (data.locations.hotels || []).slice(0, 2);
+        if (filtered.activities.length === 0) filtered.activities = (data.locations.activities || []).slice(0, 5);
+        updateMap(filtered);
+      }
 
     } catch (err) {
       typingEl.remove();
