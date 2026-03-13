@@ -173,6 +173,52 @@
   .send-btn svg { width: 14px; height: 14px; }
 
 
+
+  /* ── Clarifying questions widget ── */
+  .widget-block {
+    margin: 10px 0 4px 44px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .widget-question { display: flex; flex-direction: column; gap: 8px; }
+  .widget-question-label {
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); padding-left: 2px;
+  }
+  .widget-options { display: flex; flex-wrap: wrap; gap: 7px; }
+  .widget-option {
+    padding: 7px 14px; border-radius: 20px;
+    border: 1.5px solid var(--border); background: var(--cream);
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    color: var(--ink); cursor: pointer; transition: all 0.2s;
+    letter-spacing: 0.02em;
+  }
+  .widget-option:hover { border-color: var(--gold); background: rgba(201,168,76,0.07); color: var(--terracotta); }
+  .widget-option.selected { border-color: var(--gold); background: rgba(201,168,76,0.15); color: var(--terracotta); font-weight: 500; }
+  .widget-custom-input {
+    display: flex; gap: 8px; margin-top: 2px;
+  }
+  .widget-custom-input input {
+    flex: 1; padding: 7px 12px; border-radius: 20px;
+    border: 1.5px solid var(--border); background: var(--cream);
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    color: var(--ink); outline: none; transition: border-color 0.2s;
+  }
+  .widget-custom-input input:focus { border-color: var(--gold); }
+  .widget-custom-input input::placeholder { color: var(--muted); }
+  .widget-submit {
+    margin-top: 6px; padding: 9px 20px; border-radius: 20px;
+    border: none; background: var(--terracotta); color: white;
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    cursor: pointer; transition: all 0.2s; align-self: flex-start;
+  }
+  .widget-submit:hover { background: #a8522f; transform: translateY(-1px); }
+  @media (max-width: 768px) {
+    .widget-block { margin-left: 0; }
+    .widget-option { font-size: 11px; padding: 8px 14px; }
+  }
+
   /* ── Follow-up suggestions ── */
   .suggestions-row {
     display: flex; flex-wrap: wrap; gap: 8px;
@@ -695,6 +741,9 @@
     userInput.value = '';
     autoResize(userInput);
 
+    // Store latest user message for destination extraction
+    if (!latestDestination) latestDestination = extractDestination(text) || '';
+
     const typingEl = showTyping();
     isTyping = true;
     sendBtn.disabled = true;
@@ -710,25 +759,40 @@
       if (!response.ok || data.error) throw new Error(data.error || 'Server error');
 
       typingEl.remove();
-      appendMessage('ai', data.reply);
-      generateSuggestions(data.reply, text);
+      // Check if response contains a widget
+      const hasWidget = parseAndRenderWidget(data.reply);
+      if (!hasWidget) {
+        appendMessage('ai', data.reply);
+        generateSuggestions(data.reply, text);
+      }
 
-      // Filter locations to only show ones mentioned in the agent's reply
-      if (data.locations) {
+      // Only update map if new locations actually came back
+      const hasHotels = data.locations?.hotels?.length > 0;
+      const hasActivities = data.locations?.activities?.length > 0;
+      if (data.locations && (hasHotels || hasActivities)) {
         const reply = data.reply.toLowerCase();
+
+        // Fuzzy match: check if any word from the place name appears in the reply
+        function fuzzyMatch(name, text) {
+          if (!name) return false;
+          if (text.includes(name.toLowerCase())) return true;
+          // Check if the first significant word of the name appears in the reply
+          const words = name.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+          return words.some(w => text.includes(w));
+        }
+
         const filtered = {
-          hotels: (data.locations.hotels || []).filter(h =>
-            h.name && reply.includes(h.name.toLowerCase())
-          ),
-          activities: (data.locations.activities || []).filter(a =>
-            a.name && reply.includes(a.name.toLowerCase())
-          )
+          hotels: (data.locations.hotels || []).filter(h => fuzzyMatch(h.name, reply)),
+          activities: (data.locations.activities || []).filter(a => fuzzyMatch(a.name, reply))
         };
-        // Fallback: if nothing matched, show top 2 hotels and top 5 activities
-        if (filtered.hotels.length === 0) filtered.hotels = (data.locations.hotels || []).slice(0, 2);
-        if (filtered.activities.length === 0) filtered.activities = (data.locations.activities || []).slice(0, 5);
+
+        // Fallback: if still nothing matched, show all returned locations
+        if (filtered.hotels.length === 0) filtered.hotels = data.locations.hotels || [];
+        if (filtered.activities.length === 0) filtered.activities = data.locations.activities || [];
+
         updateMap(filtered);
       }
+      // If no new locations, keep existing map pins as-is
 
     } catch (err) {
       typingEl.remove();
@@ -921,6 +985,144 @@
     document.getElementById('tabMenu').classList.remove('active');
   }
 
+
+
+  // ── Clarifying questions widget ──
+  let widgetState = {}; // tracks selections per question id
+
+  function parseAndRenderWidget(fullText) {
+    const widgetMatch = fullText.match(/###WIDGET###([\s\S]*?)###WIDGET###/);
+    if (!widgetMatch) return null;
+
+    let jsonStr = widgetMatch[1].trim();
+    let widgetDef;
+    try { widgetDef = JSON.parse(jsonStr); } catch(e) { return null; }
+
+    const textBefore = fullText.split('###WIDGET###')[0].trim();
+    widgetState = {};
+
+    // Try to extract destination from the text before the widget
+    if (textBefore && !latestDestination) {
+      latestDestination = extractDestination(textBefore) || latestDestination;
+    }
+
+    // Render text part
+    const bubble = document.createElement('div');
+    bubble.className = 'message ai';
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar ai';
+    avatar.textContent = '✦';
+    const bub = document.createElement('div');
+    bub.className = 'bubble ai';
+    if (textBefore) bub.innerHTML = formatMessage(textBefore);
+    bubble.appendChild(avatar);
+    bubble.appendChild(bub);
+    chatArea.appendChild(bubble);
+
+    // Render widget block
+    const widgetEl = document.createElement('div');
+    widgetEl.className = 'widget-block';
+    widgetEl.id = 'activeWidget';
+
+    (widgetDef.questions || []).forEach(q => {
+      widgetState[q.id] = q.type === 'multi' ? [] : null;
+
+      const qEl = document.createElement('div');
+      qEl.className = 'widget-question';
+
+      const label = document.createElement('div');
+      label.className = 'widget-question-label';
+      label.textContent = q.question;
+      qEl.appendChild(label);
+
+      const optsEl = document.createElement('div');
+      optsEl.className = 'widget-options';
+
+      q.options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'widget-option';
+        btn.textContent = opt;
+        btn.onclick = () => {
+          if (q.type === 'multi') {
+            // Toggle for multi-select
+            const idx = widgetState[q.id].indexOf(opt);
+            if (idx === -1) { widgetState[q.id].push(opt); btn.classList.add('selected'); }
+            else { widgetState[q.id].splice(idx, 1); btn.classList.remove('selected'); }
+          } else {
+            // Single select — deselect others
+            optsEl.querySelectorAll('.widget-option').forEach(b => b.classList.remove('selected'));
+            widgetState[q.id] = opt;
+            btn.classList.add('selected');
+          }
+        };
+        optsEl.appendChild(btn);
+      });
+      qEl.appendChild(optsEl);
+
+      // Custom input field
+      const customRow = document.createElement('div');
+      customRow.className = 'widget-custom-input';
+      const customInput = document.createElement('input');
+      customInput.type = 'text';
+      customInput.placeholder = q.type === 'multi' ? 'Add your own...' : 'Something else...';
+      customInput.dataset.qid = q.id;
+      customInput.dataset.qtype = q.type;
+      customRow.appendChild(customInput);
+      qEl.appendChild(customRow);
+
+      widgetEl.appendChild(qEl);
+    });
+
+    // Submit button
+    const submitBtn = document.createElement('button');
+    submitBtn.className = 'widget-submit';
+    submitBtn.textContent = 'Continue →';
+    submitBtn.onclick = () => submitWidget(widgetDef.questions);
+    widgetEl.appendChild(submitBtn);
+
+    chatArea.appendChild(widgetEl);
+    scrollToBottom();
+    return true;
+  }
+
+  function submitWidget(questions) {
+    // Collect custom inputs
+    document.querySelectorAll('.widget-custom-input input').forEach(inp => {
+      const val = inp.value.trim();
+      if (!val) return;
+      const qid = inp.dataset.qid;
+      const qtype = inp.dataset.qtype;
+      if (qtype === 'multi') {
+        if (!Array.isArray(widgetState[qid])) widgetState[qid] = [];
+        widgetState[qid].push(val);
+      } else {
+        widgetState[qid] = val;
+      }
+    });
+
+    // Build a natural language summary to send as user message
+    const parts = [];
+    questions.forEach(q => {
+      const val = widgetState[q.id];
+      if (!val || (Array.isArray(val) && val.length === 0)) return;
+      const answer = Array.isArray(val) ? val.join(', ') : val;
+      parts.push(answer);
+    });
+
+    if (parts.length === 0) return;
+
+    // Prepend the destination so the agent doesn't lose context
+    const destination = latestDestination || '';
+    const message = destination ? `${destination}. ${parts.join('. ')}` : parts.join('. ');
+
+    // Remove widget from UI
+    const widgetEl = document.getElementById('activeWidget');
+    if (widgetEl) widgetEl.remove();
+
+    // Send as user message
+    userInput.value = message;
+    sendMessage();
+  }
 
   // ── Generate follow-up suggestions via backend (Gemini) ──
   async function generateSuggestions(aiReply, userMessage) {

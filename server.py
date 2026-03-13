@@ -100,7 +100,7 @@ def run_agent(session_id: str, user_message: str):
         # Fallback: if agent responded but no locations extracted,
         # try calling the tools directly based on what city the user mentioned
         if not locations["hotels"] and not locations["activities"] and final_response:
-            locations = _try_direct_tool_call(user_message)
+            locations = _try_direct_tool_call(user_message, final_response)
 
         return final_response or "I wasn't able to generate a response. Please try again.", locations
 
@@ -122,47 +122,104 @@ def _extract_locations(resp, locations):
                     locations["activities"].append(a)
 
 
-def _try_direct_tool_call(user_message: str) -> dict:
+def _try_direct_tool_call(user_message: str, itinerary_text: str = "") -> dict:
     """
     Fallback: if the agent didn't surface tool results through events,
     call search_hotels and search_activities directly using the city
-    mentioned in the user message.
+    mentioned in the user message, then filter against the itinerary text.
     """
-    from tools.activity_tools import search_activities, geocode_city
+    from tools.activity_tools import search_activities
     from tools.hotel_tools import search_hotels
     import re
 
     locations = {"hotels": [], "activities": []}
 
-    # Simple city extraction — look for common patterns
+    # Words that are never city names
+    NON_CITY_WORDS = {
+        'i', 'me', 'my', 'we', 'our', 'us', 'you', 'your', 'he', 'she', 'they',
+        'the', 'a', 'an', 'is', 'are', 'was', 'were', 'hi', 'hey', 'hello',
+        'just', 'please', 'can', 'could', 'would', 'plan', 'help', 'want',
+        'looking', 'need', 'going', 'travel', 'trip', 'family', 'friend', 'friends'
+    }
+
+    city = None
+
+    # Pattern 1: explicit "to/in/visit" pattern
     city_match = re.search(
-        r'\b(?:to|in|visit|trip to|going to|travel to)\s+([A-Z][a-zA-Z\s]+?)(?:\.|,|\?|!|$|\s+for|\s+next|\s+with)',
+        r'\b(?:to|in|visit|trip to|going to|travel to|traveling to|travelling to)\s+([A-Z][a-zA-Z\s]+?)(?:\.|,|\?|!|$|\s+for|\s+next|\s+with|\s+and)',
         user_message
     )
-    if not city_match:
+    if city_match:
+        candidate = city_match.group(1).strip()
+        if candidate.lower() not in NON_CITY_WORDS:
+            city = candidate
+
+    # Pattern 2: widget submission format "Tokyo. 3-4 people. 7 days..."
+    if not city:
+        widget_match = re.match(r'^([A-Z][a-zA-Z\s]{2,30}?)\.', user_message.strip())
+        if widget_match:
+            candidate = widget_match.group(1).strip()
+            if candidate.lower() not in NON_CITY_WORDS and len(candidate.split()) <= 3:
+                city = candidate
+
+    if not city:
         return locations
 
-    city = city_match.group(1).strip()
     print(f"[DEBUG] Fallback direct tool call for city: {city}")
 
+    all_hotels = []
+    all_activities = []
+
     try:
-        hotel_result = search_hotels(city, limit=5)
+        hotel_result = search_hotels(city, limit=10)
         if hotel_result.get("status") == "success":
-            locations["hotels"] = [
-                h for h in hotel_result["hotels"] if h.get("lat") and h.get("lon")
-            ]
+            all_hotels = [h for h in hotel_result["hotels"] if h.get("lat") and h.get("lon")]
     except Exception as e:
         print(f"[DEBUG] Fallback hotel search failed: {e}")
 
     try:
-        activity_result = search_activities(city, limit=15)
+        activity_result = search_activities(city, limit=20)
         if activity_result.get("status") == "success":
-            locations["activities"] = [
-                a for a in activity_result["activities"] if a.get("lat") and a.get("lon")
-            ]
+            all_activities = [a for a in activity_result["activities"] if a.get("lat") and a.get("lon")]
     except Exception as e:
         print(f"[DEBUG] Fallback activity search failed: {e}")
 
+    # Filter against itinerary text if available
+    if itinerary_text:
+        reply_lower = itinerary_text.lower()
+
+        def fuzzy_match(name, text):
+            if not name: return False
+            # Full name match (best)
+            if name.lower() in text: return True
+            # Require at least 2 significant words to match
+            words = [w for w in name.lower().split() if len(w) > 3]
+            if len(words) >= 2:
+                matches = sum(1 for w in words if w in text)
+                return matches >= 2
+            elif len(words) == 1:
+                # Single significant word — require it to be a whole word in the text
+                import re
+                return bool(re.search(r'\b' + re.escape(words[0]) + r'\b', text))
+            return False
+
+        filtered_hotels = [h for h in all_hotels if fuzzy_match(h.get("name", ""), reply_lower)]
+        filtered_activities = [a for a in all_activities if fuzzy_match(a.get("name", ""), reply_lower)]
+
+        print(f"[DEBUG] Hotel names from API: {[h.get('name') for h in all_hotels]}")
+        print(f"[DEBUG] Filtered hotels: {[h.get('name') for h in filtered_hotels]}")
+        print(f"[DEBUG] Activity names from API: {[a.get('name') for a in all_activities]}")
+        print(f"[DEBUG] Filtered activities: {[a.get('name') for a in filtered_activities]}")
+        print(f"[DEBUG] Itinerary snippet: {itinerary_text[:300]}")
+
+        # Only use filter results if we got matches, otherwise show top results
+        locations["hotels"] = filtered_hotels if filtered_hotels else all_hotels[:2]
+        locations["activities"] = filtered_activities if filtered_activities else all_activities[:5]
+    else:
+        locations["hotels"] = all_hotels[:2]
+        locations["activities"] = all_activities[:5]
+
+    print(f"[DEBUG] Returning locations: hotels={len(locations['hotels'])}, activities={len(locations['activities'])}")
     return locations
 
 
