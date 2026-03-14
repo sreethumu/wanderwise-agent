@@ -23,6 +23,7 @@ KINDS_TO_GOOGLE_TYPES = {
     "shopping": ["shopping_mall", "market", "store"],
     "nightlife": ["bar", "night_club"],
     "outdoors": ["park", "national_park", "hiking_area", "beach"],
+    "beaches": ["beach"],
 }
 
 DEFAULT_TYPES = [
@@ -34,6 +35,7 @@ DEFAULT_TYPES = [
     "zoo",
     "aquarium",
     "amusement_park",
+    "beach",
 ]
 
 

@@ -219,7 +219,6 @@ def _try_direct_tool_call(user_message: str, itinerary_text: str = "") -> dict:
         locations["hotels"] = all_hotels[:2]
         locations["activities"] = all_activities[:5]
 
-    print(f"[DEBUG] Returning locations: hotels={len(locations['hotels'])}, activities={len(locations['activities'])}")
     return locations
 
 

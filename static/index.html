@@ -284,6 +284,18 @@
   }
   .map-header-title { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
 
+  .map-filter-select {
+    font-family: 'DM Mono', monospace; font-size: 9px;
+    letter-spacing: 0.06em; color: var(--muted);
+    background: white; border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 8px;
+    cursor: pointer; outline: none;
+    transition: border-color 0.2s;
+    max-width: 140px;
+  }
+  .map-filter-select:hover, .map-filter-select:focus { border-color: var(--gold); color: var(--ink); }
+  .map-filter-select:disabled { opacity: 0.35; cursor: not-allowed; }
+
   .map-legend { display: flex; gap: 12px; }
   .legend-item { display: flex; align-items: center; gap: 5px; font-size: 9px; color: var(--muted); letter-spacing: 0.05em; }
   .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
@@ -516,9 +528,15 @@
   <div class="map-panel">
     <div class="map-header">
       <div class="map-header-title">📍 Trip Map</div>
-      <div class="map-legend">
-        <div class="legend-item"><div class="legend-dot hotel"></div>Hotels</div>
-        <div class="legend-item"><div class="legend-dot activity"></div>Activities</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <select id="mapFilter" class="map-filter-select" onchange="applyMapFilter(this.value)" disabled>
+          <option value="all">All locations</option>
+          <option value="plan">Your plan</option>
+        </select>
+        <div class="map-legend">
+          <div class="legend-item"><div class="legend-dot hotel"></div>Hotels</div>
+          <div class="legend-item"><div class="legend-dot activity"></div>Activities</div>
+        </div>
       </div>
     </div>
 
@@ -629,6 +647,8 @@
   let isTyping = false;
   let map = null;
   let markers = [];
+  let allLocations = { hotels: [], activities: [] }; // full unfiltered set for dropdown
+  let currentItineraryText = '';                      // latest reply text for "Your plan" filter
 
   const SESSION_ID = 'session-' + Math.random().toString(36).slice(2, 10);
   const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
@@ -729,6 +749,107 @@
     document.getElementById('activityCount').textContent = activityCount;
   }
 
+  // ── FIXED: tighter fuzzy match requiring 2+ significant word matches ──
+  // ── Map day filter ──
+
+  function rebuildDayDropdown(itineraryText) {
+    const select = document.getElementById('mapFilter');
+    if (!select) return;
+
+    // Remove any previously added day options (keep "all" and "plan")
+    while (select.options.length > 2) select.remove(2);
+
+    // Find all "Day N" headings in the itinerary
+    // Strip markdown bold markers first so "**Day 1:**" matches just like "Day 1:"
+    const cleanText = itineraryText.replace(/\*\*/g, '');
+    const dayRegex = /^Day\s+(\d+)/gim;
+    const days = new Set();
+    let m;
+    while ((m = dayRegex.exec(cleanText)) !== null) {
+      days.add(parseInt(m[1], 10));
+    }
+
+    // Add one option per day found, in order
+    Array.from(days).sort((a, b) => a - b).forEach(n => {
+      const opt = document.createElement('option');
+      opt.value = `day${n}`;
+      opt.textContent = `Day ${n}`;
+      select.appendChild(opt);
+    });
+  }
+
+  function applyMapFilter(value) {
+    if (!allLocations.hotels.length && !allLocations.activities.length) return;
+
+    if (value === 'all') {
+      updateMap(allLocations);
+      return;
+    }
+
+    if (value === 'plan') {
+      // Loose match against full itinerary — any significant word hits
+      const textLower = currentItineraryText.toLowerCase();
+      const filtered = {
+        hotels: allLocations.hotels.filter(h => fuzzyMatchLoose(h.name, textLower)),
+        activities: allLocations.activities.filter(a => fuzzyMatchLoose(a.name, textLower))
+      };
+      if (filtered.hotels.length === 0) filtered.hotels = allLocations.hotels;
+      if (filtered.activities.length === 0) filtered.activities = allLocations.activities;
+      updateMap(filtered);
+      return;
+    }
+
+    // Day filter — e.g. "day3"
+    const dayNum = parseInt(value.replace('day', ''), 10);
+    if (isNaN(dayNum)) return;
+
+    // Extract the section of text for this day (case-insensitive)
+    // Strip markdown bold markers so "**Day 1:**" sections are matched correctly
+    const cleanItinerary = currentItineraryText.replace(/\*\*/g, '');
+    const escaped = String(dayNum).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const sectionRegex = new RegExp(`Day\\s+${escaped}[\\s\\S]*?(?=Day\\s+\\d|$)`, 'i');
+    const sectionMatch = cleanItinerary.match(sectionRegex);
+    const sectionText = sectionMatch ? sectionMatch[0].toLowerCase() : '';
+
+    if (!sectionText) {
+      updateMap(allLocations);
+      return;
+    }
+
+    // Tight match for day sections — 2+ words to avoid false positives across days
+    const filtered = {
+      hotels: allLocations.hotels.filter(h => fuzzyMatch(h.name, sectionText)),
+      activities: allLocations.activities.filter(a => fuzzyMatch(a.name, sectionText))
+    };
+
+    if (filtered.hotels.length === 0 && filtered.activities.length === 0) {
+      updateMap(allLocations);
+    } else {
+      updateMap(filtered);
+    }
+  }
+
+  // Loose: any single significant word (used for "Your plan" full-itinerary scan)
+  function fuzzyMatchLoose(name, text) {
+    if (!name) return false;
+    if (text.includes(name.toLowerCase())) return true;
+    const words = name.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+    return words.some(w => text.includes(w));
+  }
+
+  // Tight: full name OR 2+ significant words (used for day-level filtering)
+  function fuzzyMatch(name, text) {
+    if (!name) return false;
+    if (text.includes(name.toLowerCase())) return true;
+    const words = name.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+    if (words.length >= 2) {
+      return words.filter(w => text.includes(w)).length >= 2;
+    } else if (words.length === 1) {
+      return new RegExp('\\b' + words[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(text);
+    }
+    return false;
+  }
+
   // ── Send message ──
   async function sendMessage() {
     const text = userInput.value.trim();
@@ -766,33 +887,37 @@
         generateSuggestions(data.reply, text);
       }
 
+      // Always update itinerary text when this reply contains day headers
+      // (handles the case where the itinerary arrives without new locations)
+      if (!hasWidget && data.reply && /Day\s+\d/i.test(data.reply)) {
+        currentItineraryText = data.reply;
+        rebuildDayDropdown(data.reply);
+        const filterEl = document.getElementById('mapFilter');
+        if (filterEl && !filterEl.disabled) {
+          applyMapFilter(filterEl.value);
+        }
+      }
+
       // Only update map if new locations actually came back
       const hasHotels = data.locations?.hotels?.length > 0;
       const hasActivities = data.locations?.activities?.length > 0;
       if (data.locations && (hasHotels || hasActivities)) {
-        const reply = data.reply.toLowerCase();
-
-        // Fuzzy match: check if any word from the place name appears in the reply
-        function fuzzyMatch(name, text) {
-          if (!name) return false;
-          if (text.includes(name.toLowerCase())) return true;
-          // Check if the first significant word of the name appears in the reply
-          const words = name.toLowerCase().split(/\s+/).filter(w => w.length > 3);
-          return words.some(w => text.includes(w));
+        allLocations = {
+          hotels: data.locations.hotels || [],
+          activities: data.locations.activities || []
+        };
+        // Set itinerary text from this reply if it has day headers
+        if (data.reply && /Day\s+\d/i.test(data.reply)) {
+          currentItineraryText = data.reply;
+          rebuildDayDropdown(data.reply);
         }
 
-        const filtered = {
-          hotels: (data.locations.hotels || []).filter(h => fuzzyMatch(h.name, reply)),
-          activities: (data.locations.activities || []).filter(a => fuzzyMatch(a.name, reply))
-        };
+        const filterEl = document.getElementById('mapFilter');
+        if (filterEl) { filterEl.value = 'all'; filterEl.disabled = false; }
 
-        // Fallback: if still nothing matched, show all returned locations
-        if (filtered.hotels.length === 0) filtered.hotels = data.locations.hotels || [];
-        if (filtered.activities.length === 0) filtered.activities = data.locations.activities || [];
-
-        updateMap(filtered);
+        updateMap(allLocations);
       }
-      // If no new locations, keep existing map pins as-is
+      // If no new locations, keep existing map pins and dropdown as-is
 
     } catch (err) {
       typingEl.remove();
@@ -922,6 +1047,20 @@
     document.getElementById('mapPlaceholder').style.display = 'flex';
     document.getElementById('map').style.display = 'none';
     document.getElementById('pinCount').style.display = 'none';
+
+    // Reset state
+    latestItinerary = null;
+    latestDestination = '';
+    allLocations = { hotels: [], activities: [] };
+    currentItineraryText = '';
+    const filterEl = document.getElementById('mapFilter');
+    if (filterEl) {
+      filterEl.disabled = true;
+      filterEl.value = 'all';
+      while (filterEl.options.length > 2) filterEl.remove(2);
+    }
+    const exportBtn = document.getElementById('exportBtn');
+    if (exportBtn) { exportBtn.disabled = true; exportBtn.textContent = '📄'; }
 
     chatArea.innerHTML = '';
     const welcome = document.createElement('div');
