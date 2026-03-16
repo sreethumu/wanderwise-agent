@@ -4,6 +4,8 @@
 import os
 import asyncio
 import io
+import json
+import re
 from datetime import datetime
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
@@ -14,8 +16,9 @@ load_dotenv()
 app = Flask(__name__, static_folder="static", static_url_path="")
 CORS(app)  # Allow requests from the frontend
 
-# ── Import your WanderWise agent ──
+# ── Import agents ──
 from agents.root_travel_agent import root_agent
+from agents.map_agent import map_agent
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types as genai_types
@@ -24,6 +27,74 @@ from google.genai import types as genai_types
 session_service = InMemorySessionService()
 
 APP_NAME = "wanderwise"
+
+
+async def _run_map_agent(itinerary_text: str) -> dict:
+    """
+    Run the map agent on an itinerary reply.
+    Uses a fresh isolated session — never touches the user's conversation history.
+    Returns locations dict with hotels and day-tagged activities.
+    """
+    map_sess = InMemorySessionService()
+    session_id = "map_session"
+
+    await map_sess.create_session(
+        app_name=APP_NAME, user_id=session_id, session_id=session_id,
+    )
+
+    runner = Runner(agent=map_agent, app_name=APP_NAME, session_service=map_sess)
+    content = genai_types.Content(
+        role="user", parts=[genai_types.Part(text=itinerary_text)],
+    )
+
+    map_reply = ""
+    async for event in runner.run_async(
+        user_id=session_id, session_id=session_id, new_message=content,
+    ):
+        if event.is_final_response():
+            if event.content and event.content.parts:
+                map_reply = "".join(
+                    p.text for p in event.content.parts if hasattr(p, "text") and p.text
+                )
+
+    print(f"[DEBUG] Map agent raw output: {map_reply[:300] if map_reply else 'empty'}")
+
+    locations = {"hotels": [], "activities": []}
+    if not map_reply:
+        return locations
+
+    try:
+        clean = map_reply.strip()
+        clean = re.sub(r'^```(?:json)?\s*', '', clean)
+        clean = re.sub(r'\s*```$', '', clean)
+        parsed = json.loads(clean)
+
+        for h in parsed.get("hotels", []):
+            if h.get("lat") and h.get("lon") and h.get("name"):
+                locations["hotels"].append({
+                    "name": h["name"],
+                    "lat": h["lat"],
+                    "lon": h["lon"],
+                    "address": h.get("address", ""),
+                })
+
+        for a in parsed.get("activities", []):
+            if a.get("lat") and a.get("lon") and a.get("name"):
+                locations["activities"].append({
+                    "name": a["name"],
+                    "lat": a["lat"],
+                    "lon": a["lon"],
+                    "address": a.get("address", ""),
+                    "day": a.get("day"),
+                })
+
+        print(f"[DEBUG] Map agent parsed: hotels={len(locations['hotels'])}, activities={len(locations['activities'])}")
+
+    except Exception as e:
+        print(f"[DEBUG] Map agent JSON parse error: {e}")
+        print(f"[DEBUG] Raw map output was: {map_reply}")
+
+    return locations
 
 
 def run_agent(session_id: str, user_message: str):
@@ -49,177 +120,27 @@ def run_agent(session_id: str, user_message: str):
         )
 
         final_response = ""
-        locations = {"hotels": [], "activities": []}
 
         async for event in runner.run_async(
             user_id=session_id, session_id=session_id, new_message=content,
         ):
-            # Debug: print every event type to terminal so we can see what's coming through
-            try:
-                if event.content and event.content.parts:
-                    for part in event.content.parts:
-                        # Direct function_response on a part
-                        if hasattr(part, 'function_response') and part.function_response:
-                            try:
-                                resp = part.function_response.response
-                                _extract_locations(resp, locations)
-                            except Exception:
-                                pass
-
-                        # Some ADK versions wrap it differently
-                        if hasattr(part, 'text') and part.text:
-                            pass  # text parts are handled below
-
-                # Also check event-level tool responses (sub-agent results)
-                if hasattr(event, 'tool_response') and event.tool_response:
-                    try:
-                        _extract_locations(event.tool_response, locations)
-                    except Exception:
-                        pass
-
-                # Check actions for any function responses
-                if hasattr(event, 'actions') and event.actions:
-                    for action in event.actions:
-                        if hasattr(action, 'function_response') and action.function_response:
-                            try:
-                                _extract_locations(action.function_response.response, locations)
-                            except Exception:
-                                pass
-
-            except Exception as e:
-                print(f"[DEBUG] Event parse error: {e}")
-
             if event.is_final_response():
                 if event.content and event.content.parts:
                     final_response = "".join(
                         p.text for p in event.content.parts if hasattr(p, "text") and p.text
                     )
 
-        print(f"[DEBUG] Final locations: hotels={len(locations['hotels'])}, activities={len(locations['activities'])}")
+        if not final_response:
+            return "I wasn't able to generate a response. Please try again.", {"hotels": [], "activities": []}
 
-        # Fallback: if agent responded but no locations extracted,
-        # try calling the tools directly based on what city the user mentioned
-        if not locations["hotels"] and not locations["activities"] and final_response:
-            locations = _try_direct_tool_call(user_message, final_response)
+        print(f"[DEBUG] Root agent reply length: {len(final_response)} chars")
 
-        return final_response or "I wasn't able to generate a response. Please try again.", locations
+        # Run map agent on every response to extract geocoded locations with day tags
+        locations = await _run_map_agent(final_response)
+
+        return final_response, locations
 
     return asyncio.run(_run())
-
-
-def _extract_locations(resp, locations):
-    """Helper to pull hotels/activities out of a tool response dict."""
-    if not isinstance(resp, dict):
-        return
-    if resp.get("status") == "success":
-        if "hotels" in resp:
-            for h in resp["hotels"]:
-                if isinstance(h, dict) and h.get("lat") and h.get("lon"):
-                    locations["hotels"].append(h)
-        if "activities" in resp:
-            for a in resp["activities"]:
-                if isinstance(a, dict) and a.get("lat") and a.get("lon"):
-                    locations["activities"].append(a)
-
-
-def _try_direct_tool_call(user_message: str, itinerary_text: str = "") -> dict:
-    """
-    Fallback: if the agent didn't surface tool results through events,
-    call search_hotels and search_activities directly using the city
-    mentioned in the user message, then filter against the itinerary text.
-    """
-    from tools.activity_tools import search_activities
-    from tools.hotel_tools import search_hotels
-    import re
-
-    locations = {"hotels": [], "activities": []}
-
-    # Words that are never city names
-    NON_CITY_WORDS = {
-        'i', 'me', 'my', 'we', 'our', 'us', 'you', 'your', 'he', 'she', 'they',
-        'the', 'a', 'an', 'is', 'are', 'was', 'were', 'hi', 'hey', 'hello',
-        'just', 'please', 'can', 'could', 'would', 'plan', 'help', 'want',
-        'looking', 'need', 'going', 'travel', 'trip', 'family', 'friend', 'friends'
-    }
-
-    city = None
-
-    # Pattern 1: explicit "to/in/visit" pattern
-    city_match = re.search(
-        r'\b(?:to|in|visit|trip to|going to|travel to|traveling to|travelling to)\s+([A-Z][a-zA-Z\s]+?)(?:\.|,|\?|!|$|\s+for|\s+next|\s+with|\s+and)',
-        user_message
-    )
-    if city_match:
-        candidate = city_match.group(1).strip()
-        if candidate.lower() not in NON_CITY_WORDS:
-            city = candidate
-
-    # Pattern 2: widget submission format "Tokyo. 3-4 people. 7 days..."
-    if not city:
-        widget_match = re.match(r'^([A-Z][a-zA-Z\s]{2,30}?)\.', user_message.strip())
-        if widget_match:
-            candidate = widget_match.group(1).strip()
-            if candidate.lower() not in NON_CITY_WORDS and len(candidate.split()) <= 3:
-                city = candidate
-
-    if not city:
-        return locations
-
-    print(f"[DEBUG] Fallback direct tool call for city: {city}")
-
-    all_hotels = []
-    all_activities = []
-
-    try:
-        hotel_result = search_hotels(city, limit=10)
-        if hotel_result.get("status") == "success":
-            all_hotels = [h for h in hotel_result["hotels"] if h.get("lat") and h.get("lon")]
-    except Exception as e:
-        print(f"[DEBUG] Fallback hotel search failed: {e}")
-
-    try:
-        activity_result = search_activities(city, limit=20)
-        if activity_result.get("status") == "success":
-            all_activities = [a for a in activity_result["activities"] if a.get("lat") and a.get("lon")]
-    except Exception as e:
-        print(f"[DEBUG] Fallback activity search failed: {e}")
-
-    # Filter against itinerary text if available
-    if itinerary_text:
-        reply_lower = itinerary_text.lower()
-
-        def fuzzy_match(name, text):
-            if not name: return False
-            # Full name match (best)
-            if name.lower() in text: return True
-            # Require at least 2 significant words to match
-            words = [w for w in name.lower().split() if len(w) > 3]
-            if len(words) >= 2:
-                matches = sum(1 for w in words if w in text)
-                return matches >= 2
-            elif len(words) == 1:
-                # Single significant word — require it to be a whole word in the text
-                import re
-                return bool(re.search(r'\b' + re.escape(words[0]) + r'\b', text))
-            return False
-
-        filtered_hotels = [h for h in all_hotels if fuzzy_match(h.get("name", ""), reply_lower)]
-        filtered_activities = [a for a in all_activities if fuzzy_match(a.get("name", ""), reply_lower)]
-
-        print(f"[DEBUG] Hotel names from API: {[h.get('name') for h in all_hotels]}")
-        print(f"[DEBUG] Filtered hotels: {[h.get('name') for h in filtered_hotels]}")
-        print(f"[DEBUG] Activity names from API: {[a.get('name') for a in all_activities]}")
-        print(f"[DEBUG] Filtered activities: {[a.get('name') for a in filtered_activities]}")
-        print(f"[DEBUG] Itinerary snippet: {itinerary_text[:300]}")
-
-        # Only use filter results if we got matches, otherwise show top results
-        locations["hotels"] = filtered_hotels if filtered_hotels else all_hotels[:2]
-        locations["activities"] = filtered_activities if filtered_activities else all_activities[:5]
-    else:
-        locations["hotels"] = all_hotels[:2]
-        locations["activities"] = all_activities[:5]
-
-    return locations
 
 
 # ── Routes ──
@@ -294,7 +215,6 @@ def reset():
         return jsonify({"status": "session reset"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 
 @app.route("/api/export", methods=["POST"])
@@ -384,7 +304,6 @@ def export_pdf():
         story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor('#e0d8cc'), spaceAfter=12))
 
         # ── Parse and render content ──
-        import re
         lines = raw_content.split('\n')
 
         for line in lines:
@@ -448,8 +367,6 @@ def get_suggestions():
     Expects JSON: { "reply": str, "user_message": str }
     Returns: { "suggestions": [str, str, str, str] }
     """
-    import google.generativeai as genai
-
     data = request.get_json()
     if not data or "reply" not in data:
         return jsonify({"suggestions": []}), 400
@@ -458,8 +375,8 @@ def get_suggestions():
     user_message = data.get("user_message", "")
 
     try:
-        genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-        model = genai.GenerativeModel("gemini-2.0-flash")
+        from google import genai as google_genai
+        client = google_genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
         prompt = f"""The user asked a travel question and got a travel plan back.
 
@@ -475,10 +392,12 @@ Rules:
 - Examples: "Add a day trip to Kyoto", "Switch to luxury hotels", "What's the best time to visit?", "Add more food experiences"
 """
 
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt
+        )
         raw = response.text.strip().replace("```json", "").replace("```", "").strip()
 
-        import json
         suggestions = json.loads(raw)
         if not isinstance(suggestions, list):
             raise ValueError("Not a list")
@@ -487,13 +406,13 @@ Rules:
 
     except Exception as e:
         print(f"[ERROR] Suggestions failed: {e}")
-        # Fallback hardcoded suggestions
         return jsonify({"suggestions": [
             "Add more restaurant recommendations",
             "Switch to a different budget tier",
             "Extend the trip by 2 days",
             "What's the best time of year to visit?"
         ]})
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
