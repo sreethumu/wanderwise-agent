@@ -253,6 +253,23 @@
   .map-filter-select:hover, .map-filter-select:focus { border-color: var(--gold); color: var(--ink); }
   .map-filter-select:disabled { opacity: 0.35; cursor: not-allowed; }
 
+  .map-expand-btn {
+    width: 28px; height: 28px; border-radius: 6px;
+    border: 1px solid var(--border); background: white;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; color: var(--muted); flex-shrink: 0;
+    transition: border-color 0.2s, background 0.2s, color 0.2s;
+  }
+  .map-expand-btn:hover { border-color: var(--gold); color: var(--terracotta); background: rgba(201,168,76,0.07); }
+
+  /* Expanded map: covers everything right of the sidebar */
+  .map-panel.expanded {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: calc(100vw - 260px);
+    z-index: 300;
+  }
+  .map-panel.expanded ~ * { visibility: hidden; }
+
   .map-legend { display: flex; gap: 12px; }
   .legend-item { display: flex; align-items: center; gap: 5px; font-size: 9px; color: var(--muted); letter-spacing: 0.05em; }
   .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
@@ -275,10 +292,10 @@
   .bubble .day-card { background: var(--sand); border-left: 3px solid var(--gold); border-radius: 0 8px 8px 0; padding: 10px 12px; margin: 8px 0; }
   .bubble .day-label { font-weight: 600; font-size: 11px; color: var(--terracotta); margin-bottom: 5px; letter-spacing: 0.04em; text-transform: uppercase; }
   .bubble .day-item { font-size: 11px; color: var(--ink); line-height: 1.6; padding: 2px 0 2px 12px; position: relative; }
-  .bubble .day-item::before { content: '·'; position: absolute; left: 0; color: var(--gold); font-weight: bold; }
+  .bubble .day-item::before { content: '\00b7'; position: absolute; left: 0; color: var(--gold); font-weight: bold; }
   .bubble .msg-list { padding-left: 0; margin: 6px 0; list-style: none; }
   .bubble .msg-list li { font-size: 12px; line-height: 1.6; padding: 3px 0 3px 16px; position: relative; }
-  .bubble .msg-list li::before { content: '✦'; position: absolute; left: 0; font-size: 7px; color: var(--gold); top: 7px; }
+  .bubble .msg-list li::before { content: '\2726'; position: absolute; left: 0; font-size: 7px; color: var(--gold); top: 7px; }
   .bubble .msg-spacer { height: 5px; }
 
   @media (max-width: 768px) {
@@ -379,16 +396,16 @@
         <p>Tell me your dream destination and I'll craft a personalised itinerary with hotels, activities, and an interactive map.</p>
         <div class="welcome-prompts">
           <div class="welcome-prompt" onclick="usePrompt('Plan a 7-day luxury trip to Tokyo for 2 people. We love historical sites, food, and nightlife.')">
-            <span class="wp-icon">🏯</span><div class="wp-title">Tokyo, Japan</div><div class="wp-desc">7 days · Luxury · History & Food</div>
+            <span class="wp-icon">🏯</span><div class="wp-title">Tokyo, Japan</div><div class="wp-desc">7 days · Luxury · History &amp; Food</div>
           </div>
           <div class="welcome-prompt" onclick="usePrompt('Plan a 5-day mid-range trip to Barcelona for a couple. We love architecture, beaches, and tapas.')">
-            <span class="wp-icon">🌊</span><div class="wp-title">Barcelona, Spain</div><div class="wp-desc">5 days · Mid-range · Beach & Culture</div>
+            <span class="wp-icon">🌊</span><div class="wp-title">Barcelona, Spain</div><div class="wp-desc">5 days · Mid-range · Beach &amp; Culture</div>
           </div>
           <div class="welcome-prompt" onclick="usePrompt('Plan a 10-day budget solo adventure to Thailand. I love temples, street food, and nature.')">
-            <span class="wp-icon">🌿</span><div class="wp-title">Thailand Adventure</div><div class="wp-desc">10 days · Budget · Temples & Nature</div>
+            <span class="wp-icon">🌿</span><div class="wp-title">Thailand Adventure</div><div class="wp-desc">10 days · Budget · Temples &amp; Nature</div>
           </div>
           <div class="welcome-prompt" onclick="usePrompt('Plan a 3-day weekend trip to New York City for 2. Mid-range budget, we love food, museums, and shopping.')">
-            <span class="wp-icon">🗽</span><div class="wp-title">NYC Weekend</div><div class="wp-desc">3 days · Mid-range · Culture & Food</div>
+            <span class="wp-icon">🗽</span><div class="wp-title">NYC Weekend</div><div class="wp-desc">3 days · Mid-range · Culture &amp; Food</div>
           </div>
         </div>
       </div>
@@ -441,12 +458,12 @@
       <div style="display:flex;align-items:center;gap:10px;">
         <select id="mapFilter" class="map-filter-select" onchange="applyMapFilter(this.value)" disabled>
           <option value="all">All locations</option>
-          <option value="plan">Your plan</option>
         </select>
         <div class="map-legend">
           <div class="legend-item"><div class="legend-dot hotel"></div>Hotels</div>
           <div class="legend-item"><div class="legend-dot activity"></div>Activities</div>
         </div>
+        <button class="map-expand-btn" id="mapExpandBtn" onclick="toggleMapExpand()" title="Expand map">⛶</button>
       </div>
     </div>
 
@@ -546,7 +563,6 @@
   let map = null;
   let markers = [];
   let allLocations = { hotels: [], activities: [] };
-  let currentItineraryText = '';
 
   const SESSION_ID = 'session-' + Math.random().toString(36).slice(2, 10);
   const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
@@ -568,6 +584,19 @@
     });
   }
 
+  function makeMarkerIcon(color, label) {
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32'>
+      <circle cx='16' cy='16' r='14' fill='${color}' stroke='white' stroke-width='2.5'/>
+      <text x='16' y='21' text-anchor='middle' font-family='DM Mono,monospace'
+            font-size='${label.length > 1 ? "11" : "13"}' font-weight='bold' fill='white'>${label}</text>
+    </svg>`;
+    return {
+      url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
+      scaledSize: new google.maps.Size(32, 32),
+      anchor: new google.maps.Point(16, 16),
+    };
+  }
+
   function updateMap(locations) {
     if (!map || !locations) return;
     markers.forEach(m => m.setMap(null));
@@ -584,7 +613,8 @@
       const pos = { lat: h.lat, lng: h.lon };
       const marker = new google.maps.Marker({
         position: pos, map, title: h.name,
-        icon: { path: google.maps.SymbolPath.CIRCLE, fillColor: '#c4633a', fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 2, scale: 9 }
+        icon: makeMarkerIcon('#c4633a', 'H'),
+        zIndex: 10,
       });
       marker.addListener('click', () => {
         infoWindow.setContent(`<div style="font-family:'DM Mono',monospace;padding:4px 2px;max-width:200px"><div style="font-weight:500;font-size:12px;color:#1a1612;margin-bottom:4px">🏨 ${h.name}</div><div style="font-size:10px;color:#7a7268;line-height:1.5">${h.address || ''}</div>${h.rating ? `<div style="font-size:10px;color:#c9a84c;margin-top:4px">★ ${h.rating}</div>` : ''}</div>`);
@@ -596,12 +626,14 @@
     (locations.activities || []).forEach(a => {
       if (!a.lat || !a.lon) return;
       const pos = { lat: a.lat, lng: a.lon };
+      const label = a.day != null ? String(a.day) : '?';
       const marker = new google.maps.Marker({
         position: pos, map, title: a.name,
-        icon: { path: google.maps.SymbolPath.CIRCLE, fillColor: '#4a90d9', fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 2, scale: 7 }
+        icon: makeMarkerIcon('#4a90d9', label),
+        zIndex: 5,
       });
       marker.addListener('click', () => {
-        infoWindow.setContent(`<div style="font-family:'DM Mono',monospace;padding:4px 2px;max-width:200px"><div style="font-weight:500;font-size:12px;color:#1a1612;margin-bottom:4px">📍 ${a.name}</div><div style="font-size:10px;color:#7a7268;line-height:1.5">${a.address || ''}</div>${a.rating ? `<div style="font-size:10px;color:#c9a84c;margin-top:4px">★ ${a.rating}</div>` : ''}</div>`);
+        infoWindow.setContent(`<div style="font-family:'DM Mono',monospace;padding:4px 2px;max-width:200px"><div style="font-weight:500;font-size:12px;color:#1a1612;margin-bottom:4px">📍 ${a.name}</div><div style="font-size:10px;color:#7a7268;line-height:1.5">${a.address || ''}</div>${a.day != null ? `<div style="font-size:10px;color:#4a90d9;margin-top:4px">Day ${a.day}</div>` : ''}</div>`);
         infoWindow.open(map, marker);
       });
       markers.push(marker); bounds.extend(pos); activityCount++;
@@ -612,20 +644,28 @@
     document.getElementById('activityCount').textContent = activityCount;
   }
 
-  function rebuildDayDropdown(itineraryText) {
+  // ── Map expand/collapse ──
+  let mapExpanded = false;
+  function toggleMapExpand() {
+    mapExpanded = !mapExpanded;
+    const panel = document.querySelector('.map-panel');
+    const btn = document.getElementById('mapExpandBtn');
+    const main = document.querySelector('.main');
+    panel.classList.toggle('expanded', mapExpanded);
+    btn.textContent = mapExpanded ? '⊠' : '⛶';
+    btn.title = mapExpanded ? 'Collapse map' : 'Expand map';
+    main.style.visibility = mapExpanded ? 'hidden' : '';
+    if (map) setTimeout(() => google.maps.event.trigger(map, 'resize'), 50);
+  }
+
+  // ── Map day filter — uses day field from map_agent, no text matching needed ──
+
+  function rebuildDayDropdown(activities) {
     const select = document.getElementById('mapFilter');
     if (!select) return;
-    while (select.options.length > 2) select.remove(2);
-
-    // FIX 2: Strip markdown bold markers before scanning so "**Day 1:**"
-    // matches just as reliably as plain "Day 1:".
-    const cleanText = itineraryText.replace(/\*\*/g, '');
-    const dayRegex = /^Day\s+(\d+)/gim;
+    while (select.options.length > 1) select.remove(1);
     const days = new Set();
-    let m;
-    while ((m = dayRegex.exec(cleanText)) !== null) {
-      days.add(parseInt(m[1], 10));
-    }
+    (activities || []).forEach(a => { if (a.day != null) days.add(a.day); });
     Array.from(days).sort((a, b) => a - b).forEach(n => {
       const opt = document.createElement('option');
       opt.value = `day${n}`;
@@ -636,63 +676,15 @@
 
   function applyMapFilter(value) {
     if (!allLocations.hotels.length && !allLocations.activities.length) return;
-
     if (value === 'all') { updateMap(allLocations); return; }
-
-    if (value === 'plan') {
-      const textLower = currentItineraryText.toLowerCase();
-      const filtered = {
-        hotels: allLocations.hotels.filter(h => fuzzyMatchLoose(h.name, textLower)),
-        activities: allLocations.activities.filter(a => fuzzyMatchLoose(a.name, textLower))
-      };
-      if (filtered.hotels.length === 0) filtered.hotels = allLocations.hotels;
-      if (filtered.activities.length === 0) filtered.activities = allLocations.activities;
-      updateMap(filtered);
-      return;
-    }
-
     const dayNum = parseInt(value.replace('day', ''), 10);
     if (isNaN(dayNum)) return;
-
-    // FIX 2 (continued): Strip markdown bold before extracting day sections
-    // so the regex matches regardless of how the agent formatted the headers.
-    const cleanItinerary = currentItineraryText.replace(/\*\*/g, '');
-    const escaped = String(dayNum).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const sectionRegex = new RegExp(`Day\\s+${escaped}[\\s\\S]*?(?=Day\\s+\\d|$)`, 'i');
-    const sectionMatch = cleanItinerary.match(sectionRegex);
-    const sectionText = sectionMatch ? sectionMatch[0].toLowerCase() : '';
-
-    if (!sectionText) { updateMap(allLocations); return; }
-
+    // Hotels always show so user can see distance from accommodation
     const filtered = {
-      hotels: allLocations.hotels.filter(h => fuzzyMatch(h.name, sectionText)),
-      activities: allLocations.activities.filter(a => fuzzyMatch(a.name, sectionText))
+      hotels: allLocations.hotels,
+      activities: allLocations.activities.filter(a => a.day === dayNum)
     };
-
-    if (filtered.hotels.length === 0 && filtered.activities.length === 0) {
-      updateMap(allLocations);
-    } else {
-      updateMap(filtered);
-    }
-  }
-
-  function fuzzyMatchLoose(name, text) {
-    if (!name) return false;
-    if (text.includes(name.toLowerCase())) return true;
-    const words = name.toLowerCase().split(/\s+/).filter(w => w.length > 3);
-    return words.some(w => text.includes(w));
-  }
-
-  function fuzzyMatch(name, text) {
-    if (!name) return false;
-    if (text.includes(name.toLowerCase())) return true;
-    const words = name.toLowerCase().split(/\s+/).filter(w => w.length > 3);
-    if (words.length >= 2) {
-      return words.filter(w => text.includes(w)).length >= 2;
-    } else if (words.length === 1) {
-      return new RegExp('\\b' + words[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(text);
-    }
-    return false;
+    updateMap(filtered.activities.length > 0 ? filtered : allLocations);
   }
 
   async function sendMessage() {
@@ -728,20 +720,6 @@
         generateSuggestions(data.reply, text);
       }
 
-      // FIX 1: Update itinerary text and rebuild the day dropdown unconditionally
-      // whenever the reply contains day headers — previously this was buried inside
-      // the locations block and silently skipped if no map pins came back.
-      if (!hasWidget && data.reply && /Day\s+\d/i.test(data.reply)) {
-        currentItineraryText = data.reply;
-        rebuildDayDropdown(data.reply);
-        // Enable the dropdown as soon as we have an itinerary, even if no map pins yet
-        const filterEl = document.getElementById('mapFilter');
-        if (filterEl) {
-          filterEl.disabled = false;
-          applyMapFilter(filterEl.value);
-        }
-      }
-
       const hasHotels = data.locations?.hotels?.length > 0;
       const hasActivities = data.locations?.activities?.length > 0;
       if (data.locations && (hasHotels || hasActivities)) {
@@ -749,6 +727,7 @@
           hotels: data.locations.hotels || [],
           activities: data.locations.activities || []
         };
+        rebuildDayDropdown(allLocations.activities);
         const filterEl = document.getElementById('mapFilter');
         if (filterEl) { filterEl.value = 'all'; filterEl.disabled = false; }
         updateMap(allLocations);
@@ -867,10 +846,10 @@
     latestItinerary = null;
     latestDestination = '';
     allLocations = { hotels: [], activities: [] };
-    currentItineraryText = '';
+    if (mapExpanded) toggleMapExpand();
 
     const filterEl = document.getElementById('mapFilter');
-    if (filterEl) { filterEl.disabled = true; filterEl.value = 'all'; while (filterEl.options.length > 2) filterEl.remove(2); }
+    if (filterEl) { filterEl.disabled = true; filterEl.value = 'all'; while (filterEl.options.length > 1) filterEl.remove(1); }
     disableFabItems();
     closeFabMenu();
 
@@ -884,16 +863,16 @@
       <p>Tell me your dream destination and I'll craft a personalised itinerary with hotels, activities, and an interactive map.</p>
       <div class="welcome-prompts">
         <div class="welcome-prompt" onclick="usePrompt('Plan a 7-day luxury trip to Tokyo for 2 people. We love historical sites, food, and nightlife.')">
-          <span class="wp-icon">🏯</span><div class="wp-title">Tokyo, Japan</div><div class="wp-desc">7 days · Luxury · History & Food</div>
+          <span class="wp-icon">🏯</span><div class="wp-title">Tokyo, Japan</div><div class="wp-desc">7 days · Luxury · History &amp; Food</div>
         </div>
         <div class="welcome-prompt" onclick="usePrompt('Plan a 5-day mid-range trip to Barcelona for a couple. We love architecture, beaches, and tapas.')">
-          <span class="wp-icon">🌊</span><div class="wp-title">Barcelona, Spain</div><div class="wp-desc">5 days · Mid-range · Beach & Culture</div>
+          <span class="wp-icon">🌊</span><div class="wp-title">Barcelona, Spain</div><div class="wp-desc">5 days · Mid-range · Beach &amp; Culture</div>
         </div>
         <div class="welcome-prompt" onclick="usePrompt('Plan a 10-day budget solo adventure to Thailand. I love temples, street food, and nature.')">
-          <span class="wp-icon">🌿</span><div class="wp-title">Thailand Adventure</div><div class="wp-desc">10 days · Budget · Temples & Nature</div>
+          <span class="wp-icon">🌿</span><div class="wp-title">Thailand Adventure</div><div class="wp-desc">10 days · Budget · Temples &amp; Nature</div>
         </div>
         <div class="welcome-prompt" onclick="usePrompt('Plan a 3-day weekend trip to New York City for 2. Mid-range budget, we love food, museums, and shopping.')">
-          <span class="wp-icon">🗽</span><div class="wp-title">NYC Weekend</div><div class="wp-desc">3 days · Mid-range · Culture & Food</div>
+          <span class="wp-icon">🗽</span><div class="wp-title">NYC Weekend</div><div class="wp-desc">3 days · Mid-range · Culture &amp; Food</div>
         </div>
       </div>`;
     chatArea.appendChild(welcome);
@@ -1085,7 +1064,7 @@
     }
   }
 
-  // ── Action menu ──
+  // ── Action menu (+ button) ──
   let fabOpen = false;
   const FAB_COUNT = 5;
 
@@ -1151,7 +1130,7 @@
     navigator.clipboard.writeText(text).then(() => {
       const icon = document.querySelector('#fabShare .fab-item-icon');
       const orig = icon.textContent;
-      icon.textContent = '\u2705';
+      icon.textContent = '✅';
       setTimeout(() => { icon.textContent = orig; }, 2000);
     }).catch(() => alert('Could not copy to clipboard.'));
   }
@@ -1171,7 +1150,6 @@
     window.open(url, '_blank');
   }
 
-  // Close menu when clicking outside
   document.addEventListener('click', function(e) {
     if (fabOpen && !document.getElementById('fabWrap').contains(e.target)) closeFabMenu();
   });
