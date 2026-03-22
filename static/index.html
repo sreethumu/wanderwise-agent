@@ -617,7 +617,20 @@
         zIndex: 10,
       });
       marker.addListener('click', () => {
-        infoWindow.setContent(`<div style="font-family:'DM Mono',monospace;padding:4px 2px;max-width:200px"><div style="font-weight:500;font-size:12px;color:#1a1612;margin-bottom:4px">🏨 ${h.name}</div><div style="font-size:10px;color:#7a7268;line-height:1.5">${h.address || ''}</div>${h.rating ? `<div style="font-size:10px;color:#c9a84c;margin-top:4px">★ ${h.rating}</div>` : ''}</div>`);
+        infoWindow.setContent(`
+          <div style="font-family:'DM Mono',monospace;width:220px;box-sizing:border-box;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+              <span style="font-size:14px;">🏨</span>
+              <div style="font-weight:500;font-size:11px;color:#1a1612;line-height:1.3;">${h.name}</div>
+            </div>
+            <div style="height:70px;overflow-y:auto;font-size:10px;color:#3a3530;line-height:1.6;margin-bottom:6px;padding-right:2px;">
+              ${h.description || 'A well-regarded hotel in the heart of the city.'}
+            </div>
+            <div style="border-top:1px solid #e0d8cc;padding-top:5px;display:flex;justify-content:space-between;align-items:center;">
+              <div style="font-size:9px;color:#7a7268;line-height:1.4;">${h.address || ''}</div>
+              ${h.rating ? `<div style="font-size:10px;color:#c9a84c;font-weight:500;white-space:nowrap;margin-left:6px;">★ ${h.rating}</div>` : ''}
+            </div>
+          </div>`);
         infoWindow.open(map, marker);
       });
       markers.push(marker); bounds.extend(pos); hotelCount++;
@@ -633,7 +646,20 @@
         zIndex: 5,
       });
       marker.addListener('click', () => {
-        infoWindow.setContent(`<div style="font-family:'DM Mono',monospace;padding:4px 2px;max-width:200px"><div style="font-weight:500;font-size:12px;color:#1a1612;margin-bottom:4px">📍 ${a.name}</div><div style="font-size:10px;color:#7a7268;line-height:1.5">${a.address || ''}</div>${a.day != null ? `<div style="font-size:10px;color:#4a90d9;margin-top:4px">Day ${a.day}</div>` : ''}</div>`);
+        infoWindow.setContent(`
+          <div style="font-family:'DM Mono',monospace;width:220px;box-sizing:border-box;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+              <span style="font-size:14px;">📍</span>
+              <div style="font-weight:500;font-size:11px;color:#1a1612;line-height:1.3;">${a.name}</div>
+            </div>
+            <div style="height:70px;overflow-y:auto;font-size:10px;color:#3a3530;line-height:1.6;margin-bottom:6px;padding-right:2px;">
+              ${a.description || 'A notable destination worth visiting on your trip.'}
+            </div>
+            <div style="border-top:1px solid #e0d8cc;padding-top:5px;display:flex;justify-content:space-between;align-items:center;">
+              <div style="font-size:9px;color:#7a7268;line-height:1.4;">${a.address || ''}</div>
+              ${a.day != null ? `<div style="font-size:10px;color:#4a90d9;font-weight:500;white-space:nowrap;margin-left:6px;">Day ${a.day}</div>` : ''}
+            </div>
+          </div>`);
         infoWindow.open(map, marker);
       });
       markers.push(marker); bounds.extend(pos); activityCount++;

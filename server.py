@@ -76,6 +76,7 @@ async def _run_map_agent(itinerary_text: str) -> dict:
                     "lat": h["lat"],
                     "lon": h["lon"],
                     "address": h.get("address", ""),
+                    "description": h.get("description", ""),
                 })
 
         for a in parsed.get("activities", []):
@@ -86,6 +87,7 @@ async def _run_map_agent(itinerary_text: str) -> dict:
                     "lon": a["lon"],
                     "address": a.get("address", ""),
                     "day": a.get("day"),
+                    "description": a.get("description", ""),
                 })
 
         print(f"[DEBUG] Map agent parsed: hotels={len(locations['hotels'])}, activities={len(locations['activities'])}")
